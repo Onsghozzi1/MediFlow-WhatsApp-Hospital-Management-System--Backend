@@ -1,0 +1,140 @@
+package com.example.MediFlow.repository.query.impl;
+
+import com.example.MediFlow.Dtos.Patients.PatientDTO;
+import com.example.MediFlow.Dtos.Patients.PatientFilter;
+import com.example.MediFlow.Dtos.Patients.PatientResponseDto;
+import com.example.MediFlow.Dtos.user_dto.AdminFilter;
+import com.example.MediFlow.Dtos.user_dto.AdminResponseDto;
+import com.example.MediFlow.Dtos.user_dto.UserDTO;
+import com.example.MediFlow.entity.Patient;
+import com.example.MediFlow.entity.User;
+import com.example.MediFlow.mapper.UserMapper;
+import com.example.MediFlow.repository.UserRepository;
+import com.example.MediFlow.repository.query.IPatientQuery;
+import com.example.MediFlow.repository.query.IUserQuery;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+
+@Controller
+public class PatientQueryImpl implements IPatientQuery {
+    private final EntityManager em;
+
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private UserMapper userMapper;
+
+    public PatientQueryImpl(EntityManager em) {
+        this.em = em;
+    }
+    @Override
+    public PatientResponseDto getPatientPagination(int pageNo, int pageSize, String sortBy, String sortDir, PatientFilter filter) {
+        PatientResponseDto patientResponseDto = new PatientResponseDto();
+
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<Patient> cq = cb.createQuery(Patient.class);
+        Root<Patient> root = cq.from(Patient.class);
+
+        Predicate[] predicatesArray = getPredicates(filter, cb, root, cq);
+        cq.distinct(true);
+        cq.where(predicatesArray);
+        cq.orderBy(cb.desc(root.get(sortBy)));
+
+        long count = countUserPagination(filter);
+        long totalMale = countByGender("MALE", filter);
+        long totalFemale = countByGender("FEMALE", filter);
+
+        TypedQuery<Patient> query = em.createQuery(cq);
+        query.setFirstResult(pageNo * pageSize);
+        query.setMaxResults(pageSize);
+
+        List<Patient> porteFeuille = query.getResultList();
+
+
+
+        List<PatientDTO> patientDTO = porteFeuille.stream()
+                .map(this::convertOneToDto)
+                .collect(Collectors.toList());
+        patientResponseDto.setContent(patientDTO);
+        patientResponseDto.setPageNo(pageNo);
+        patientResponseDto.setTotalElements(count);
+        patientResponseDto.setPageSize(pageSize);
+        patientResponseDto.setTotalMale(totalMale);
+        patientResponseDto.setTotalFemale(totalFemale);
+        return patientResponseDto;
+    }
+
+    public long countUserPagination(PatientFilter filter) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+        Root<Patient> root = cq.from(Patient.class);
+        Predicate[] predicatesArray = getPredicates(filter, cb, root, cq);
+        cq.select(cb.countDistinct(root));
+        cq.where(predicatesArray);
+        return em.createQuery(cq).getSingleResult();
+    }
+
+    private <T> Predicate[] getPredicates(PatientFilter filter, CriteriaBuilder cb, Root<Patient> root, CriteriaQuery<T> cq) {
+        List<Predicate> predicates = new ArrayList<>();
+        predicates.add(cb.equal(root.get("is_delete"), false));
+
+        if (filter.getId() != null && filter.getId().longValue() > 0) {
+            predicates.add(cb.equal(root.get("id"), filter.getId()));
+        }
+        return predicates.toArray(new Predicate[0]);
+    }
+    private long countByGender(String gender, PatientFilter filter) {
+
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+        Root<Patient> root = cq.from(Patient.class);
+
+        List<Predicate> predicates = new ArrayList<>();
+
+        // garder les filtres existants
+        Predicate[] basePredicates = getPredicates(filter, cb, root, cq);
+        for (Predicate p : basePredicates) {
+            predicates.add(p);
+        }
+
+        // ajouter filtre gender
+        predicates.add(cb.equal(root.get("gender"), gender));
+
+        cq.select(cb.count(root));
+        cq.where(predicates.toArray(new Predicate[0]));
+
+        return em.createQuery(cq).getSingleResult();
+    }
+
+    private PatientDTO convertOneToDto(Patient post) {
+        PatientDTO dto = new PatientDTO();
+        dto.setId(post.getId());
+        dto.setFullName(post.getFullName());
+        dto.setPhone(post.getPhone());
+        dto.setMedicalHistory(post.getMedicalHistory());
+        dto.setBirthDate(post.getBirthDate());
+        dto.setWhatsappNumber(post.getWhatsappNumber());
+        dto.setGender(post.getGender());
+        dto.setAddress(post.getAddress());
+        dto.setAge(post.getAge());
+        dto.setMedical_Record_ID(post.getMedical_Record_ID());
+        return dto;
+    }
+
+
+
+}
