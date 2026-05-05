@@ -7,6 +7,7 @@ import com.example.MediFlow.Dtos.ApoimentsDtos.AppoimentsDto;
 import com.example.MediFlow.entity.Appointment;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
+import com.example.MediFlow.entity.enums.Status;
 import com.example.MediFlow.mapper.UserMapper;
 import com.example.MediFlow.repository.AppointmentRepository;
 import com.example.MediFlow.repository.PatientRepository;
@@ -21,8 +22,11 @@ import jakarta.persistence.criteria.Root;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Controller
@@ -62,11 +66,20 @@ public class AppoimentQueryImpl implements IAppoimentQuery {
         List<Appoi_dto> appoimentsDto = porteFeuille.stream()
                 .map(this::convertOneToDto)
                 .collect(Collectors.toList());
+
+        // ✅ CALL STATS HERE (FIX)
+        Map<String, Long> stats = getAppointmentStats();
+
         apoimentsResponse.setContent(appoimentsDto);
         apoimentsResponse.setPageNo(pageNo);
         apoimentsResponse.setTotalElements(count);
         apoimentsResponse.setPageSize(pageSize);
-        return apoimentsResponse;
+        apoimentsResponse.setTotal_Appointments(stats.get("total_Appointments"));
+      apoimentsResponse.setToday_Appointments(stats.get("today_Appointments"));
+ apoimentsResponse.setCompleted(stats.get("completed"));
+apoimentsResponse.setUpcoming(stats.get("Upcoming"));
+
+  return apoimentsResponse;
     }
 
     public long countUserPagination(ApoimentFilter filter) {
@@ -97,10 +110,11 @@ public class AppoimentQueryImpl implements IAppoimentQuery {
         dto.setAppointmentType(post.getAppointment_Type());
         // Check if patient exists to avoid NullPointerException
         if (post.getPatient() != null) {
-            // Set patient full name using helper method
             dto.setPatient_name(getPatient(post.getPatient().getId()));
+            dto.setPatientId(post.getPatient().getId());
+        } else {
+            dto.setPatientId(null); // optional
         }
-       dto.setPatientId(post.getPatient().getId());
         // Avoid NullPointerException for doctor
         if (post.getDoctor() != null) {
             dto.setDoctor_name(getDoctor(post.getDoctor().getEmail()));
@@ -123,5 +137,68 @@ public class AppoimentQueryImpl implements IAppoimentQuery {
                 .orElse(null); // return null if doctor not found
     }
 
+    private Map<String, Long> getAppointmentStats() {
 
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+
+        // TOTAL
+        CriteriaQuery<Long> totalQuery = cb.createQuery(Long.class);
+        Root<Appointment> root = totalQuery.from(Appointment.class);
+
+        totalQuery.select(cb.count(root))
+                .where(cb.equal(root.get("is_delete"), false));
+
+        Long total = em.createQuery(totalQuery).getSingleResult();
+//
+//        // TODAY
+      CriteriaQuery<Long> todayQuery = cb.createQuery(Long.class);
+        Root<Appointment> todayRoot = todayQuery.from(Appointment.class);
+//
+        todayQuery.select(cb.count(todayRoot))
+                .where(cb.and(
+                        cb.equal(todayRoot.get("is_delete"), false),
+                        cb.equal(todayRoot.get("AppointmentDate"), LocalDate.now())
+                ));
+        Long today = em.createQuery(todayQuery).getSingleResult();
+//
+//        // COMPLETED (FIXED ENUM)
+        CriteriaQuery<Long> completedQuery = cb.createQuery(Long.class);
+       Root<Appointment> completedRoot = completedQuery.from(Appointment.class);
+
+      completedQuery.select(cb.count(completedRoot))
+               .where(cb.and(
+                       cb.equal(completedRoot.get("is_delete"), false),
+                       cb.equal(completedRoot.get("status"), Status.DONE)
+             ));
+//
+      Long completed = em.createQuery(completedQuery).getSingleResult();
+//
+//        // UPCOMING
+       CriteriaQuery<Long> upcomingQuery = cb.createQuery(Long.class);
+        Root<Appointment> upcomingRoot = upcomingQuery.from(Appointment.class);
+//
+        upcomingQuery.select(cb.count(upcomingRoot))
+                .where(cb.and(
+                        cb.equal(upcomingRoot.get("is_delete"), false),
+
+                        cb.greaterThan(
+                                upcomingRoot.get("AppointmentDate"),
+                                LocalDate.now()
+                        ),
+
+                        cb.or(
+                                cb.equal(upcomingRoot.get("status"), Status.PENDING),
+                                cb.equal(upcomingRoot.get("status"), Status.CONFIRMED)
+                        )
+                ));
+
+        Long upcoming = em.createQuery(upcomingQuery).getSingleResult();
+        Map<String, Long> stats = new HashMap<>();
+        stats.put("total_Appointments", total);
+     stats.put("today_Appointments", today);
+        stats.put("completed", completed);
+      stats.put("Upcoming", upcoming);
+
+        return stats;
+    }
 }

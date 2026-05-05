@@ -16,4 +16,8 @@ public class ApoimentsResponse {
     private long totalElements;
     private int totalPages;
     private boolean last;
+    private Long total_Appointments;
+    private Long today_Appointments;
+    private Long completed;
+    private Long Upcoming;
 }
