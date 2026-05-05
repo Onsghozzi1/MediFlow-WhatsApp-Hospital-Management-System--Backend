@@ -6,4 +6,5 @@ import lombok.NoArgsConstructor;
 
 @Data
 public class ApoimentFilter {
+    private Long id;
 }

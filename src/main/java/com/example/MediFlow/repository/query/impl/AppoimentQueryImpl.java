@@ -2,10 +2,15 @@ package com.example.MediFlow.repository.query.impl;
 
 import com.example.MediFlow.Dtos.ApoimentsDtos.ApoimentFilter;
 import com.example.MediFlow.Dtos.ApoimentsDtos.ApoimentsResponse;
+import com.example.MediFlow.Dtos.ApoimentsDtos.Appoi_dto;
 import com.example.MediFlow.Dtos.ApoimentsDtos.AppoimentsDto;
 import com.example.MediFlow.entity.Appointment;
+import com.example.MediFlow.entity.Patient;
+import com.example.MediFlow.entity.User;
 import com.example.MediFlow.mapper.UserMapper;
 import com.example.MediFlow.repository.AppointmentRepository;
+import com.example.MediFlow.repository.PatientRepository;
+import com.example.MediFlow.repository.UserRepository;
 import com.example.MediFlow.repository.query.IAppoimentQuery;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -28,7 +33,10 @@ public class AppoimentQueryImpl implements IAppoimentQuery {
     private AppointmentRepository appointmentRepository;
     @Autowired
     private UserMapper userMapper;
-
+    @Autowired
+    private PatientRepository patientRepository;
+    @Autowired
+    private UserRepository userRepository;
     public AppoimentQueryImpl(EntityManager em) {
         this.em = em;
     }
@@ -51,7 +59,7 @@ public class AppoimentQueryImpl implements IAppoimentQuery {
         query.setFirstResult(pageNo * pageSize);
         query.setMaxResults(pageSize);
         List< Appointment> porteFeuille = query.getResultList();
-        List<AppoimentsDto> appoimentsDto = porteFeuille.stream()
+        List<Appoi_dto> appoimentsDto = porteFeuille.stream()
                 .map(this::convertOneToDto)
                 .collect(Collectors.toList());
         apoimentsResponse.setContent(appoimentsDto);
@@ -73,17 +81,47 @@ public class AppoimentQueryImpl implements IAppoimentQuery {
 
     private <T> Predicate[] getPredicates(ApoimentFilter filter, CriteriaBuilder cb, Root< Appointment> root, CriteriaQuery<T> cq) {
         List<Predicate> predicates = new ArrayList<>();
-
+        predicates.add(cb.equal(root.get("is_delete"), false));
+        if (filter.getId() != null && filter.getId().longValue() > 0) {
+            predicates.add(cb.equal(root.get("id"), filter.getId()));
+        }
         return predicates.toArray(new Predicate[0]);
     }
-    private AppoimentsDto convertOneToDto( Appointment post) {
-        AppoimentsDto dto = new AppoimentsDto();
+    private Appoi_dto convertOneToDto( Appointment post) {
+        Appoi_dto dto = new Appoi_dto();
+        dto.setId(post.getId());
         dto.setStatus(post.getStatus());
-        dto.setDateTime(post.getDateTime());
+        dto.setAppointmentDate(post.getAppointmentDate());
+        dto.setPriority(post.getPriority());
+        dto.setStatus(post.getStatus());
+        dto.setAppointmentType(post.getAppointment_Type());
+        // Check if patient exists to avoid NullPointerException
+        if (post.getPatient() != null) {
+            // Set patient full name using helper method
+            dto.setPatient_name(getPatient(post.getPatient().getId()));
+        }
+       dto.setPatientId(post.getPatient().getId());
+        // Avoid NullPointerException for doctor
+        if (post.getDoctor() != null) {
+            dto.setDoctor_name(getDoctor(post.getDoctor().getEmail()));
+        }
+        dto.setNotes(post.getNotes());
+        dto.setReason(post.getReason());
         return dto;
     }
 
-
+    // Retrieves patient's full name safely using Optional
+    String getPatient(Long patientId) {
+        return patientRepository.findById(patientId)
+                .map(Patient::getFullName) // extract full name if found
+                .orElse(null); // return null if patient not found
+    }
+    // Retrieves doctor's full name safely using Optional
+    String getDoctor(String email) {
+        return userRepository.findByEmail(email)
+                .map(user -> user.getFirstName() + " " + user.getLastName()) // combine names
+                .orElse(null); // return null if doctor not found
+    }
 
 
 }

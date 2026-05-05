@@ -4,6 +4,7 @@ import com.example.MediFlow.Dtos.ApiResponse;
 import com.example.MediFlow.Dtos.Patients.PatientDTO;
 import com.example.MediFlow.Dtos.Patients.PatientFilter;
 import com.example.MediFlow.Dtos.Patients.PatientResponseDto;
+import com.example.MediFlow.Dtos.Patients.Patient_AppointmentDto;
 import com.example.MediFlow.Dtos.user_dto.AdminFilter;
 import com.example.MediFlow.Dtos.user_dto.AdminResponseDto;
 import com.example.MediFlow.entity.Patient;
@@ -17,6 +18,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RequestMapping("/api/v1/Patient/")
@@ -71,5 +73,10 @@ public class PatientController {
         return ResponseEntity.ok(
                 new ApiResponse("Business deleted successfully", "deleted",null)
         );
+    }
+    @GetMapping("/get_patients")
+    public ResponseEntity<List<Patient_AppointmentDto>> getAllPatients() {
+        List<Patient_AppointmentDto> patients = iPatientService.getAllPatients();
+        return ResponseEntity.ok(patients);
     }
 }

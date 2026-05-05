@@ -3,6 +3,7 @@ package com.example.MediFlow.services.impl;
 import com.example.MediFlow.Dtos.Patients.PatientDTO;
 import com.example.MediFlow.Dtos.Patients.PatientFilter;
 import com.example.MediFlow.Dtos.Patients.PatientResponseDto;
+import com.example.MediFlow.Dtos.Patients.Patient_AppointmentDto;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.exception.PatientAlreadyExistsException;
 import com.example.MediFlow.mapper.PatientMapper;
@@ -16,6 +17,7 @@ import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
+import java.util.List;
 
 @Service
 public class PatientServiceImpl implements IPatientService {
@@ -104,5 +106,22 @@ public class PatientServiceImpl implements IPatientService {
         patient.setUpdate_date_time(LocalDateTime.now());
         patientRepository.save(patient);
     }
+
+
+    @Override
+    public List<Patient_AppointmentDto> getAllPatients() {
+        List<Patient> patients = patientRepository.findAll();
+
+        return patients.stream()
+                .map(this::convertToDto)
+                .toList();
+    }
+    private Patient_AppointmentDto convertToDto(Patient patient) {
+        Patient_AppointmentDto dto = new Patient_AppointmentDto();
+        dto.setPatientId(patient.getId());
+        dto.setFullName(patient.getFullName());
+        return dto;
+    }
+
 
 }
