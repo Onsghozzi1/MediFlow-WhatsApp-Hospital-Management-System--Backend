@@ -75,8 +75,8 @@ public class PatientController {
         );
     }
     @GetMapping("/get_patients")
-    public ResponseEntity<List<Patient_AppointmentDto>> getAllPatients() {
-        List<Patient_AppointmentDto> patients = iPatientService.getAllPatients();
+    public ResponseEntity<List<Patient_AppointmentDto>> getAllPatients(  @RequestParam(required = false) Long appointmentId) {
+        List<Patient_AppointmentDto> patients = iPatientService.getAllPatients(appointmentId);
         return ResponseEntity.ok(patients);
     }
 }

@@ -48,5 +48,6 @@ public class PatientDTO {
     private String address;
     private String medical_Record_ID;
     private Boolean is_delete;
+    private Boolean patient_activated;
 
 }

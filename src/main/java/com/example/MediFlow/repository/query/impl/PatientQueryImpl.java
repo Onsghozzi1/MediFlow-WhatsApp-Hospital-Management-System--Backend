@@ -9,6 +9,7 @@ import com.example.MediFlow.Dtos.user_dto.UserDTO;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
 import com.example.MediFlow.mapper.UserMapper;
+import com.example.MediFlow.repository.AppointmentRepository;
 import com.example.MediFlow.repository.UserRepository;
 import com.example.MediFlow.repository.query.IPatientQuery;
 import com.example.MediFlow.repository.query.IUserQuery;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Controller;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 
@@ -37,6 +39,8 @@ public class PatientQueryImpl implements IPatientQuery {
     private UserRepository userRepository;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private AppointmentRepository appointmentRepository;
 
     public PatientQueryImpl(EntityManager em) {
         this.em = em;
@@ -64,11 +68,12 @@ public class PatientQueryImpl implements IPatientQuery {
 
         List<Patient> porteFeuille = query.getResultList();
 
-
+        Set<Long> assignedPatientIds = appointmentRepository.findalldPatientIds();
 
         List<PatientDTO> patientDTO = porteFeuille.stream()
-                .map(this::convertOneToDto)
+                .map(p -> convertOneToDto(p, assignedPatientIds))
                 .collect(Collectors.toList());
+
         patientResponseDto.setContent(patientDTO);
         patientResponseDto.setPageNo(pageNo);
         patientResponseDto.setTotalElements(count);
@@ -90,7 +95,7 @@ public class PatientQueryImpl implements IPatientQuery {
 
     private <T> Predicate[] getPredicates(PatientFilter filter, CriteriaBuilder cb, Root<Patient> root, CriteriaQuery<T> cq) {
         List<Predicate> predicates = new ArrayList<>();
-        predicates.add(cb.equal(root.get("is_delete"), false));
+        predicates.add(cb.equal(root.get("isDelete"), false));
 
         if (filter.getId() != null && filter.getId().longValue() > 0) {
             predicates.add(cb.equal(root.get("id"), filter.getId()));
@@ -119,22 +124,33 @@ public class PatientQueryImpl implements IPatientQuery {
 
         return em.createQuery(cq).getSingleResult();
     }
+    private PatientDTO convertOneToDto(Patient patient, Set<Long> assignedIds) {
 
-    private PatientDTO convertOneToDto(Patient post) {
         PatientDTO dto = new PatientDTO();
-        dto.setId(post.getId());
-        dto.setFullName(post.getFullName());
-        dto.setPhone(post.getPhone());
-        dto.setMedicalHistory(post.getMedicalHistory());
-        dto.setBirthDate(post.getBirthDate());
-        dto.setWhatsappNumber(post.getWhatsappNumber());
-        dto.setGender(post.getGender());
-        dto.setAddress(post.getAddress());
-        dto.setAge(post.getAge());
-        dto.setMedical_Record_ID(post.getMedical_Record_ID());
+
+        dto.setId(patient.getId());
+
+        // 🔥 هنا السحر
+        if (assignedIds.contains(patient.getId())) {
+            dto.setFullName(patient.getFullName());
+            dto.setPatient_activated(false);
+        } else {
+            dto.setFullName(patient.getFullName() + " (already assigned)");
+            dto.setPatient_activated(true);
+
+        }
+
+        dto.setPhone(patient.getPhone());
+        dto.setMedicalHistory(patient.getMedicalHistory());
+        dto.setBirthDate(patient.getBirthDate());
+        dto.setWhatsappNumber(patient.getWhatsappNumber());
+        dto.setGender(patient.getGender());
+        dto.setAddress(patient.getAddress());
+        dto.setAge(patient.getAge());
+        dto.setMedical_Record_ID(patient.getMedical_Record_ID());
+
         return dto;
     }
-
 
 
 }

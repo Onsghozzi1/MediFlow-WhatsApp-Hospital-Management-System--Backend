@@ -7,6 +7,7 @@ import com.example.MediFlow.Dtos.Patients.Patient_AppointmentDto;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.exception.PatientAlreadyExistsException;
 import com.example.MediFlow.mapper.PatientMapper;
+import com.example.MediFlow.repository.AppointmentRepository;
 import com.example.MediFlow.repository.PatientRepository;
 import com.example.MediFlow.repository.query.IPatientQuery;
 import com.example.MediFlow.services.IPatientService;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class PatientServiceImpl implements IPatientService {
@@ -28,6 +30,8 @@ public class PatientServiceImpl implements IPatientService {
     private PatientMapper patientMapper;
     @Autowired
     private IPatientQuery iPatientQuery;
+    @Autowired
+    private AppointmentRepository appointmentRepository;
 
 
     private static final String PREFIX = "MR-";
@@ -48,7 +52,7 @@ public class PatientServiceImpl implements IPatientService {
         entity.setMedical_Record_ID(generateMedicalRecordId());
         entity.setAge(Period.between(patientDTO.getBirthDate(), LocalDate.now()).getYears());
         entity.setAddress(patientDTO.getAddress());
-        entity.setIs_delete(false);
+        entity.setIsDelete(false);
         // Sauvegarder en base
         Patient savedEntity = patientRepository.save(entity);
         return mapToDto(savedEntity);
@@ -102,20 +106,30 @@ public class PatientServiceImpl implements IPatientService {
     public void changeDeleteStatus(Long id) {
         Patient patient = patientRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Patient not found"));
-        patient.setIs_delete(true);
+        patient.setIsDelete(true);
         patient.setUpdate_date_time(LocalDateTime.now());
         patientRepository.save(patient);
     }
 
-
     @Override
-    public List<Patient_AppointmentDto> getAllPatients() {
-        List<Patient> patients = patientRepository.findAll();
+    public List<Patient_AppointmentDto> getAllPatients(Long appointmentId) {
+
+        List<Patient> patients = patientRepository.findByIsDeleteFalse();
+
+        Set<Long> blockedIds;
+        if (appointmentId == null) {
+         blockedIds = appointmentRepository.findalldPatientIds();
+      } else {
+          blockedIds = appointmentRepository.findAllPatient(appointmentId);
+     }
 
         return patients.stream()
+                .filter(p -> blockedIds.contains(p.getId()))
+                .distinct()
                 .map(this::convertToDto)
                 .toList();
     }
+
     private Patient_AppointmentDto convertToDto(Patient patient) {
         Patient_AppointmentDto dto = new Patient_AppointmentDto();
         dto.setPatientId(patient.getId());

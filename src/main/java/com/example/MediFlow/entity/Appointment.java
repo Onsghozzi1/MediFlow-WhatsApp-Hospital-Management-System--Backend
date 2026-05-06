@@ -18,6 +18,7 @@ public class Appointment {
     private LocalDate AppointmentDate;
     @Enumerated(EnumType.STRING)
     private Status status;
+
     @ManyToOne
     private Patient patient;
     @ManyToOne

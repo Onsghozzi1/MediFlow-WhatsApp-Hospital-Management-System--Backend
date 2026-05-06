@@ -34,5 +34,6 @@ public class Patient {
     private LocalDateTime create_date_time ;
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDateTime update_date_time ;
-    private Boolean is_delete;
+    @Column(name = "is_delete")
+    private Boolean isDelete;
 }
