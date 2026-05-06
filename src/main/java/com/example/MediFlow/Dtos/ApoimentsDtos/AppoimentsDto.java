@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 public class AppoimentsDto {
     @NotNull(message = "DateTime is required")
     @Future(message = "Appointment must be in the future")
-    private LocalDate appointmentDate;
+    private LocalDateTime appointmentDate;
 
     @Enumerated(EnumType.STRING)
     @NotNull(message = "Appointment type is required")

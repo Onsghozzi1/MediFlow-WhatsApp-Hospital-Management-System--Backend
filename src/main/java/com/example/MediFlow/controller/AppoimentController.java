@@ -4,7 +4,9 @@ import com.example.MediFlow.Dtos.ApiResponse;
 import com.example.MediFlow.Dtos.ApoimentsDtos.ApoimentFilter;
 import com.example.MediFlow.Dtos.ApoimentsDtos.ApoimentsResponse;
 import com.example.MediFlow.Dtos.ApoimentsDtos.AppoimentsDto;
+import com.example.MediFlow.Dtos.ApoimentsDtos.Appointment_calendar;
 import com.example.MediFlow.Dtos.Patients.PatientDTO;
+import com.example.MediFlow.Dtos.Patients.Patient_AppointmentDto;
 import com.example.MediFlow.Dtos.user_dto.AdminFilter;
 import com.example.MediFlow.Dtos.user_dto.AdminResponseDto;
 import com.example.MediFlow.services.IAppointmentService;
@@ -17,6 +19,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RequestMapping("/api/v1/Appointment/")
@@ -66,5 +69,9 @@ public class AppoimentController {
                         null
                 )
         );
+    }
+    @GetMapping("/get_calendar")
+    public List<Appointment_calendar> getCalender() {
+        return iAppointmentService.getAllAppointments();
     }
 }

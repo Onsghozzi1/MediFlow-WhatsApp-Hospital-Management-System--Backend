@@ -14,13 +14,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 @Data
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
     public class Appoi_dto {
         private Long id ;
-        private LocalDate appointmentDate;
+        private LocalDateTime appointmentDate;
         private AppointmentType appointmentType;
         private String doctor_name;
         private String patient_name;

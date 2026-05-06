@@ -3,6 +3,7 @@ package com.example.MediFlow.services.impl;
 import com.example.MediFlow.Dtos.ApoimentsDtos.ApoimentFilter;
 import com.example.MediFlow.Dtos.ApoimentsDtos.ApoimentsResponse;
 import com.example.MediFlow.Dtos.ApoimentsDtos.AppoimentsDto;
+import com.example.MediFlow.Dtos.ApoimentsDtos.Appointment_calendar;
 import com.example.MediFlow.entity.Appointment;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class AppointmentServiceImpl implements IAppointmentService {
@@ -91,6 +93,29 @@ public class AppointmentServiceImpl implements IAppointmentService {
         Appointment saved = appointmentRepository.save(appointment);
 
         return appoimentMapper.mapTo_appoiment_DTO(saved);
+    }
+
+    @Override
+    public List<Appointment_calendar> getAllAppointments() {
+
+        List<Appointment> appointments = appointmentRepository.findAll();
+
+        return appointments.stream()
+                .map(this::mapToCalendar)
+                .toList();
+    }
+    private Appointment_calendar mapToCalendar(Appointment a) {
+
+        Appointment_calendar dto = new Appointment_calendar();
+
+        dto.setId(a.getId());
+        dto.setAppointmentDate(a.getAppointmentDate());
+        dto.setPatientId(a.getPatient().getId());
+        dto.setPatientName(a.getPatient().getFullName());
+        dto.setStatus(a.getStatus());
+        dto.setPriority(a.getPriority());
+
+        return dto;
     }
 
 }
