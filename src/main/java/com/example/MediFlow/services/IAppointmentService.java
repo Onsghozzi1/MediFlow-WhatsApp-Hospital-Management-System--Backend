@@ -1,9 +1,7 @@
 package com.example.MediFlow.services;
 
-import com.example.MediFlow.Dtos.ApoimentsDtos.ApoimentFilter;
-import com.example.MediFlow.Dtos.ApoimentsDtos.ApoimentsResponse;
-import com.example.MediFlow.Dtos.ApoimentsDtos.AppoimentsDto;
-import com.example.MediFlow.Dtos.ApoimentsDtos.Appointment_calendar;
+import com.example.MediFlow.Dtos.ApoimentsDtos.*;
+import com.example.MediFlow.Dtos.Patients.Patient_AppointmentDto;
 import com.example.MediFlow.Dtos.user_dto.AdminFilter;
 import com.example.MediFlow.Dtos.user_dto.AdminResponseDto;
 
@@ -15,5 +13,7 @@ public interface IAppointmentService {
     public void changeDeleteStatus(Long id);
     public AppoimentsDto update(Long id, AppoimentsDto dto);
     List<Appointment_calendar>  getAllAppointments();
+
+    List <AllPatients>   getAllAppointmentsPatient();
 
 }

@@ -56,6 +56,14 @@
 				<scope>runtime</scope>
 			</dependency>
 
+			<!-- TWILIO -->
+			<dependency>
+				<groupId>com.twilio.sdk</groupId>
+				<artifactId>twilio</artifactId>
+				<version>12.0.0</version>
+			</dependency>
+
+
 			<!-- JWT -->
 			<dependency>
 				<groupId>io.jsonwebtoken</groupId>

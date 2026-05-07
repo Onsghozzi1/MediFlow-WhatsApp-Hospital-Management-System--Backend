@@ -1,9 +1,7 @@
 package com.example.MediFlow.services.impl;
 
-import com.example.MediFlow.Dtos.ApoimentsDtos.ApoimentFilter;
-import com.example.MediFlow.Dtos.ApoimentsDtos.ApoimentsResponse;
-import com.example.MediFlow.Dtos.ApoimentsDtos.AppoimentsDto;
-import com.example.MediFlow.Dtos.ApoimentsDtos.Appointment_calendar;
+import com.example.MediFlow.Dtos.ApoimentsDtos.*;
+import com.example.MediFlow.Dtos.Patients.Patient_AppointmentDto;
 import com.example.MediFlow.entity.Appointment;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
@@ -104,6 +102,20 @@ public class AppointmentServiceImpl implements IAppointmentService {
                 .map(this::mapToCalendar)
                 .toList();
     }
+
+    @Override
+    public List<AllPatients> getAllAppointmentsPatient() {
+        List<Appointment> appointments = appointmentRepository.findAll();
+
+        return appointments.stream()
+                .map(app -> AllPatients.builder()
+                        .patientId(app.getPatient().getId())
+                        .fullName(app.getPatient().getFullName() )
+
+                        .build())
+                .toList();
+    }
+
     private Appointment_calendar mapToCalendar(Appointment a) {
 
         Appointment_calendar dto = new Appointment_calendar();

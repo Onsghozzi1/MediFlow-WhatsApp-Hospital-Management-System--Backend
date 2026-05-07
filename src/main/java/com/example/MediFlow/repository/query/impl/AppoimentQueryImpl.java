@@ -23,6 +23,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -98,6 +100,38 @@ apoimentsResponse.setUpcoming(stats.get("Upcoming"));
         if (filter.getId() != null && filter.getId().longValue() > 0) {
             predicates.add(cb.equal(root.get("id"), filter.getId()));
         }
+        if (filter.getPatient_name() != null
+                && !filter.getPatient_name().trim().isEmpty()) {
+            predicates.add(
+                    cb.like(
+                            cb.lower(root.get("patient").get("fullName")),
+                            "%" + filter.getPatient_name().toLowerCase() + "%"
+                    )
+            );
+        }
+        if (filter.getAppointmentDate() != null) {
+            LocalDateTime selectedDateTime = filter.getAppointmentDate();
+            LocalDate date = selectedDateTime.toLocalDate();
+            LocalDateTime startOfDay = date.atStartOfDay();
+            LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+            predicates.add(
+                    cb.between(
+                            root.get("AppointmentDate"),
+                            startOfDay,
+                            endOfDay
+                    )
+            );
+        }
+        if (filter.getPriority() != null ) {
+            predicates.add(cb.equal(root.get("priority"), filter.getPriority()));
+        }
+        if (filter.getStatus() != null ) {
+            predicates.add(cb.equal(root.get("status"), filter.getStatus()));
+        }
+        if (filter.getAppointment_Type() != null ) {
+            predicates.add(cb.equal(root.get("appointment_Type"), filter.getAppointment_Type()));
+        }
+
         return predicates.toArray(new Predicate[0]);
     }
     private Appoi_dto convertOneToDto( Appointment post) {

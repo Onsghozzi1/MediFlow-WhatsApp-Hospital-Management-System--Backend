@@ -33,5 +33,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
                  ORDER BY p.id
 """, nativeQuery = true)
     Set<Long> findAllPatient(@Param("appointmentId") Long appointmentId);
-
+    @Query("""
+SELECT a FROM Appointment a
+JOIN a.patient p
+WHERE p.id = :patientId
+""")
+    Appointment findByPatient(@Param("patientId") Long patientId);
 }
