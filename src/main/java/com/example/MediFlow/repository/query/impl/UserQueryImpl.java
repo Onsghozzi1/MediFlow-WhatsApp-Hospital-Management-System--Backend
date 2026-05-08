@@ -79,6 +79,17 @@ public class UserQueryImpl implements IUserQuery {
 
     private <T> Predicate[] getPredicates(AdminFilter filter, CriteriaBuilder cb, Root<User> root, CriteriaQuery<T> cq) {
         List<Predicate> predicates = new ArrayList<>();
+        if (filter != null
+                && filter.getIdUser() != null
+                && filter.getIdUser() > 0) {
+
+            predicates.add(
+                    cb.equal(
+                            root.get("id"),
+                            filter.getIdUser()
+                    )
+            );
+        }
         return predicates.toArray(new Predicate[0]);
     }
     private UserDTO convertOneToDto(User post) {

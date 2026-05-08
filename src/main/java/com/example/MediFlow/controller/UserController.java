@@ -9,6 +9,7 @@ import com.example.MediFlow.entity.User;
 import com.example.MediFlow.exception.AccountNotValidatedException;
 import com.example.MediFlow.exception.EmailNotFoundException;
 import com.example.MediFlow.repository.UserRepository;
+import jakarta.mail.MessagingException;
 import org.springframework.validation.annotation.Validated;
 import com.example.MediFlow.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +52,13 @@ public class UserController {
                 new ApiResponse("SUCCESS", "User created successfully",null)
         );
     }
+
+
+    @PostMapping("/admin/register")
+    public UserDTO createAdminAccount(@Valid  @RequestBody UserRegisterDTO userRegisterDTO) throws MessagingException {
+        return userService.createAdminAccount(userRegisterDTO);
+    }
+
     /**********Login**********/
     @PostMapping("/token")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDTO loginData) {

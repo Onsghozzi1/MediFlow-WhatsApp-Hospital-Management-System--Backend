@@ -72,7 +72,20 @@ public class UserServiceImpl implements UserService {
 
         return createAccount(userRegisterDTO);
     }
-    public UserDTO createAccount(UserRegisterDTO userRegisterDTO) throws Exception {
+    @Override
+    public UserDTO createAdminAccount(UserRegisterDTO userRegisterDTO) {
+        if(userRegisterDTO.getRoleTypes()!= Roles.ADMIN){
+            throw new UserServiceCustomException("Unsupported role type", "UNSUPPORTED_ROLE_TYPE",
+                    HttpStatus.BAD_REQUEST);
+        }
+        // ✅ Vérifier si l'email existe déjà
+        if (userRepository.existsByEmail(userRegisterDTO.getEmail())) {
+            throw new UserServiceCustomException("Email already exists", "EMAIL_ALREADY_EXISTS", HttpStatus.CONFLICT);
+        }
+        userRegisterDTO.setRoleTypes(userRegisterDTO.getRoleTypes());
+        return createAccount(userRegisterDTO);
+    }
+    public UserDTO createAccount(UserRegisterDTO userRegisterDTO) {
         if (userRepository.findByEmail(userRegisterDTO.getEmail()).isPresent()) {
             throw new UserServiceCustomException(
                     "Email already exists: " + userRegisterDTO.getEmail(),
@@ -466,4 +479,5 @@ public class UserServiceImpl implements UserService {
 
         tokenRepository.delete(resetToken);
     }
+
 }

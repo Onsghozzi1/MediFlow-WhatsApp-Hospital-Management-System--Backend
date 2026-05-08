@@ -22,5 +22,5 @@ public interface UserService {
     void change_password(Password_dto passwordDto, String email) throws MessagingException;
     public void requestPasswordReset(String email) throws Exception;
     public void resetPassword(String token, String newPassword)  throws Exception;
-
+    public UserDTO createAdminAccount(UserRegisterDTO userRegisterDTO) throws MessagingException;
 }
