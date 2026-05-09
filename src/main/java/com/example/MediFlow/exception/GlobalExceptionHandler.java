@@ -98,5 +98,14 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.CONFLICT) // 409 is correct here
                 .body(response);
     }
+    @ExceptionHandler(AppointmentException.class)
+    public ResponseEntity<?> handleAppointment(AppointmentException ex) {
 
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of(
+                        "code", "APPOINTMENT_EXISTS",
+                        "message", ex.getMessage()
+                ));
+    }
 }

@@ -46,7 +46,10 @@ public class AuthConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**",
+                        // PUBLIC ENDPOINTS
+                        .requestMatchers("/api/v1/patient_appointments/**").permitAll()
+                        .requestMatchers(
+                                "/api/v1/auth/**",
                                 "/api/v1/business/**",
                                 "/api/v1/Patient/**",
                                 "/api/v1/Appointment/**",
@@ -56,6 +59,7 @@ public class AuthConfig {
                                 "/api/v1/files/**",
                                 "/api/v1/legalStructure/**",
                                 "/api/v1/userManagement/**").permitAll()
+                        // PUBLIC APIs
                         .anyRequest().authenticated()
                 );
 

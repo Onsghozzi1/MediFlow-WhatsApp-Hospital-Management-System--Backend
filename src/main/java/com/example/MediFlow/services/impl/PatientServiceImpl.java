@@ -1,9 +1,6 @@
 package com.example.MediFlow.services.impl;
 
-import com.example.MediFlow.Dtos.Patients.PatientDTO;
-import com.example.MediFlow.Dtos.Patients.PatientFilter;
-import com.example.MediFlow.Dtos.Patients.PatientResponseDto;
-import com.example.MediFlow.Dtos.Patients.Patient_AppointmentDto;
+import com.example.MediFlow.Dtos.Patients.*;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.exception.PatientAlreadyExistsException;
 import com.example.MediFlow.mapper.PatientMapper;
@@ -19,6 +16,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -128,6 +126,45 @@ public class PatientServiceImpl implements IPatientService {
                 .distinct()
                 .map(this::convertToDto)
                 .toList();
+    }
+
+    @Override
+    public List_attributs_patients etListPatients() {
+
+        List<Patient> patients = patientRepository.findAll();
+
+        List_attributs_patients dto = new List_attributs_patients();
+
+        dto.setMedicalRecordIds(
+                patients.stream()
+                        .map(Patient::getMedical_Record_ID)
+                        .filter(Objects::nonNull)
+                        .toList()
+        );
+
+        dto.setFull_name(
+                patients.stream()
+                        .map(p -> p.getFullName())
+                        .toList()
+        );
+
+
+
+        dto.setPhone(
+                patients.stream()
+                        .map(Patient::getPhone)
+                        .filter(Objects::nonNull)
+                        .toList()
+        );
+
+        dto.setAddress(
+                patients.stream()
+                        .map(Patient::getAddress)
+                        .filter(Objects::nonNull)
+                        .toList()
+        );
+
+        return dto;
     }
 
     private Patient_AppointmentDto convertToDto(Patient patient) {

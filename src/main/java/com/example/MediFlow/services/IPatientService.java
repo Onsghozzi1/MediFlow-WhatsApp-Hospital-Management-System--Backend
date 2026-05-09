@@ -1,9 +1,6 @@
 package com.example.MediFlow.services;
 
-import com.example.MediFlow.Dtos.Patients.PatientDTO;
-import com.example.MediFlow.Dtos.Patients.PatientFilter;
-import com.example.MediFlow.Dtos.Patients.PatientResponseDto;
-import com.example.MediFlow.Dtos.Patients.Patient_AppointmentDto;
+import com.example.MediFlow.Dtos.Patients.*;
 
 import java.util.List;
 
@@ -13,6 +10,8 @@ public interface IPatientService {
     PatientDTO updatePatient(Long id_Patient, PatientDTO Patient);
     public void changeDeleteStatus(Long id);
     public List<Patient_AppointmentDto> getAllPatients( Long appointmentId);
+    List_attributs_patients  etListPatients();
+
 
 
 }

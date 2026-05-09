@@ -7,6 +7,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Data
@@ -15,7 +16,9 @@ public class Patient {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String fullName;
+    @Column(unique = true, nullable = false)
     private String phone;
+    @Column(unique = true, nullable = false)
     private String whatsappNumber;
     private LocalDate birthDate;
 
@@ -36,4 +39,6 @@ public class Patient {
     private LocalDateTime update_date_time ;
     @Column(name = "is_delete")
     private Boolean isDelete;
+    @OneToMany(mappedBy = "patient")
+    private List<Appointment> appointments;
 }

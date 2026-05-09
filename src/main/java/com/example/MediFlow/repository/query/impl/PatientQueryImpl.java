@@ -15,10 +15,7 @@ import com.example.MediFlow.repository.query.IPatientQuery;
 import com.example.MediFlow.repository.query.IUserQuery;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -92,14 +89,96 @@ public class PatientQueryImpl implements IPatientQuery {
         cq.where(predicatesArray);
         return em.createQuery(cq).getSingleResult();
     }
+    private <T> Predicate[] getPredicates(
+            PatientFilter filter,
+            CriteriaBuilder cb,
+            Root<Patient> root,
+            CriteriaQuery<T> cq
+    ) {
 
-    private <T> Predicate[] getPredicates(PatientFilter filter, CriteriaBuilder cb, Root<Patient> root, CriteriaQuery<T> cq) {
         List<Predicate> predicates = new ArrayList<>();
+
+        // =========================
+        // NOT DELETED
+        // =========================
         predicates.add(cb.equal(root.get("isDelete"), false));
 
-        if (filter.getId() != null && filter.getId().longValue() > 0) {
-            predicates.add(cb.equal(root.get("id"), filter.getId()));
+        // =========================
+        // FILTER BY ID
+        // =========================
+        if (filter.getId() != null && filter.getId() > 0) {
+
+            predicates.add(
+                    cb.equal(root.get("id"), filter.getId())
+            );
         }
+
+        // =========================
+        // FILTER BY MEDICAL RECORD ID
+        // =========================
+        if (filter.getMedicalRecordIds() != null
+                && !filter.getMedicalRecordIds().trim().isEmpty()) {
+
+            predicates.add(
+                    cb.like(
+                            cb.lower(root.get("medical_Record_ID")),
+                            "%" + filter.getMedicalRecordIds().toLowerCase() + "%"
+                    )
+            );
+        }
+// =========================
+// FILTER BY GENDER
+// =========================
+        if (filter.getGender() != null) {
+
+            predicates.add(
+                    cb.equal(
+                            root.get("gender"),
+                            filter.getGender()
+                    )
+            );
+        }
+        // =========================
+        // FILTER BY FULL NAME
+        // =========================
+            if (filter.getFull_name() != null
+                    && !filter.getFull_name().trim().isEmpty()) {
+
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("fullName")),
+                                "%" + filter.getFull_name().toLowerCase() + "%"
+                        )
+                );
+            }
+        // =========================
+        // FILTER BY PHONE
+        // =========================
+        if (filter.getPhone() != null
+                && !filter.getPhone().trim().isEmpty()) {
+
+            predicates.add(
+                    cb.like(
+                            cb.lower(root.get("phone")),
+                            "%" + filter.getPhone().toLowerCase() + "%"
+                    )
+            );
+        }
+
+        // =========================
+        // FILTER BY ADDRESS
+        // =========================
+        if (filter.getAddress() != null
+                && !filter.getAddress().trim().isEmpty()) {
+
+            predicates.add(
+                    cb.like(
+                            cb.lower(root.get("address")),
+                            "%" + filter.getAddress().toLowerCase() + "%"
+                    )
+            );
+        }
+
         return predicates.toArray(new Predicate[0]);
     }
     private long countByGender(String gender, PatientFilter filter) {

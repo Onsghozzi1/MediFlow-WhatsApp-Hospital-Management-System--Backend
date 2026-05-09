@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -120,4 +122,47 @@ public class AppoimentController {
 //
 //        return Map.of("url", url);
 //    }
+
+    // =========================
+    // CREATE APPOINTMENT
+    // =========================
+
+    @PostMapping("/create_appoint")
+    public Appointment create(
+            @RequestParam Long doctorId,
+            @RequestParam String patientName,
+            @RequestParam String date,
+            @RequestParam String time
+    ) {
+
+        return iAppointmentService.createAppointment2(
+                doctorId,
+                patientName,
+                LocalDate.parse(date),
+                LocalTime.parse(time)
+        );
+    }
+
+    // =========================
+    // AVAILABLE SLOTS
+    // =========================
+
+    @GetMapping("/slots")
+    public List<LocalTime> slots(
+            @RequestParam Long doctorId,
+            @RequestParam String date
+    ) {
+
+        return iAppointmentService.getAvailableSlots(
+                doctorId,
+                LocalDate.parse(date)
+        );
+    }
+    @PutMapping("/{id}/move")
+    public Appointment moveAppointment(
+            @PathVariable Long id,
+            @RequestBody MoveAppointmentRequest request
+    ) {
+        return iAppointmentService.moveAppointment(id, request);
+    }
 }

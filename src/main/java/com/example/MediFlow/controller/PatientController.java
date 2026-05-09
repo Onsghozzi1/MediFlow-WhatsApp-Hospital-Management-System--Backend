@@ -1,10 +1,7 @@
 package com.example.MediFlow.controller;
 
 import com.example.MediFlow.Dtos.ApiResponse;
-import com.example.MediFlow.Dtos.Patients.PatientDTO;
-import com.example.MediFlow.Dtos.Patients.PatientFilter;
-import com.example.MediFlow.Dtos.Patients.PatientResponseDto;
-import com.example.MediFlow.Dtos.Patients.Patient_AppointmentDto;
+import com.example.MediFlow.Dtos.Patients.*;
 import com.example.MediFlow.Dtos.user_dto.AdminFilter;
 import com.example.MediFlow.Dtos.user_dto.AdminResponseDto;
 import com.example.MediFlow.entity.Patient;
@@ -77,6 +74,11 @@ public class PatientController {
     @GetMapping("/get_patients")
     public ResponseEntity<List<Patient_AppointmentDto>> getAllPatients(  @RequestParam(required = false) Long appointmentId) {
         List<Patient_AppointmentDto> patients = iPatientService.getAllPatients(appointmentId);
+        return ResponseEntity.ok(patients);
+    }
+    @GetMapping("/all_list_patients")
+    public ResponseEntity<List_attributs_patients> ListPatients() {
+      List_attributs_patients patients = iPatientService.etListPatients();
         return ResponseEntity.ok(patients);
     }
 }
