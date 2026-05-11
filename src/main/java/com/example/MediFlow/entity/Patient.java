@@ -41,4 +41,7 @@ public class Patient {
     private Boolean isDelete;
     @OneToMany(mappedBy = "patient")
     private List<Appointment> appointments;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "doctor_id")
+    private Doctor doctor;
 }

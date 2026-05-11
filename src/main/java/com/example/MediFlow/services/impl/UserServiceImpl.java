@@ -4,12 +4,14 @@ import com.example.MediFlow.Dtos.*;
 import com.example.MediFlow.Dtos.role_dto.RoleDto;
 import com.example.MediFlow.Dtos.user_dto.*;
 import com.example.MediFlow.Security.JWTService;
+import com.example.MediFlow.entity.Doctor;
 import com.example.MediFlow.entity.User;
 import com.example.MediFlow.entity.enums.Roles;
 import com.example.MediFlow.exception.AccountNotValidatedException;
 import com.example.MediFlow.exception.EmailNotFoundException;
 import com.example.MediFlow.exception.UserServiceCustomException;
 import com.example.MediFlow.mapper.UserMapper;
+import com.example.MediFlow.repository.DoctorRepository;
 import com.example.MediFlow.repository.PasswordResetTokenRepository;
 import com.example.MediFlow.repository.UserRepository;
 import com.example.MediFlow.repository.query.IUserQuery;
@@ -48,6 +50,8 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private BCryptPasswordEncoder bcryptEncoder;
     @Autowired
+    private DoctorRepository doctorRepository;
+    @Autowired
     private IUserQuery iUserQuery;
     private Random random = new Random();
 
@@ -85,53 +89,59 @@ public class UserServiceImpl implements UserService {
         userRegisterDTO.setRoleTypes(userRegisterDTO.getRoleTypes());
         return createAccount(userRegisterDTO);
     }
-    public UserDTO createAccount(UserRegisterDTO userRegisterDTO) {
-        if (userRepository.findByEmail(userRegisterDTO.getEmail()).isPresent()) {
+    public UserDTO createAccount(UserRegisterDTO dto) {
+
+        if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
             throw new UserServiceCustomException(
-                    "Email already exists: " + userRegisterDTO.getEmail(),
+                    "Email already exists: " + dto.getEmail(),
                     "EMAIL_ALREADY_EXISTS",
                     HttpStatus.CONFLICT
             );
         }
-        User user = userMapper.mapToUser(userRegisterDTO);
+
+        // 1. MAP USER
+        User user = userMapper.mapToUser(dto);
+
         user.setCreatedAt(Instant.now());
         user.setRoleTypes(Roles.DOCTOR);
-        user.setPassword(passwordEncoder.encode(userRegisterDTO.getPassword()));
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setIsValidated(false);
         user.setIsDeleted(false);
-        user.setRoleTypes(userRegisterDTO.getRoleTypes());
         user.setTokenToValidate(generateOTPToSend());
         user.setFirstTimeLogin(true);
-        user.setPhone(userRegisterDTO.getPhoneNumber());
+        user.setPhone(dto.getPhoneNumber());
         user.setValidateCodeCreationDate(LocalDateTime.now());
 
-        // ✅ 1. If profile picture exists → use it
-        if (userRegisterDTO.getProfilePicture() != null
-                && userRegisterDTO.getProfilePicture().length > 0) {
-
-            user.setProfilePicture(userRegisterDTO.getProfilePicture());
-
+        // 2. PROFILE PICTURE
+        if (dto.getProfilePicture() != null && dto.getProfilePicture().length > 0) {
+            user.setProfilePicture(dto.getProfilePicture());
         } else {
-            // ✅ 2. Else → generate avatar
             try {
                 byte[] avatar = avatarGeneratorService.generateAvatar(
-                        userRegisterDTO.getFirstName(),
-                        userRegisterDTO.getLastName()
+                        dto.getFirstName(),
+                        dto.getLastName()
                 );
                 user.setProfilePicture(avatar);
-
             } catch (Exception e) {
-                System.err.println("Failed to generate avatar: " + e.getMessage());
+                System.err.println("Avatar error: " + e.getMessage());
             }
         }
 
-      //  sendMail(user,userRegisterDTO.getPassword(),user.getTokenToValidate());
+        // 3. SAVE USER FIRST (IMPORTANT)
+        User savedUser = userRepository.save(user);
 
-        // ✅ 3. Save user
-        User userSave = userRepository.save(user);
-
-        return userMapper.mapToUserDto(userSave);
+        // 4. CREATE DOCTOR
+        Doctor doctor = new Doctor();
+        doctor.setUser(savedUser);
+       // doctor.setPhone(savedUser.getPhone());
+        doctor.setName(savedUser.getFirstName() + " " + savedUser.getLastName());
+        doctor.setAvailable(true);
+        doctorRepository.save(doctor);
+        user.setDoctor(doctor);
+        // 5. RETURN DTO
+        return userMapper.mapToUserDto(savedUser);
     }
+
     public void sendMail(User user,String password,Long tokenToValidate) throws Exception {
         String[] lcc = new String[2];
         if (user != null) {

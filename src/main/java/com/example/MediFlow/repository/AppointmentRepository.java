@@ -52,7 +52,7 @@ JOIN a.patient p
 WHERE p.id = :patientId
 """)
     Appointment findByPatient(@Param("patientId") Long patientId);
-
+/*
     @Query("""
     SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END
     FROM Appointment a
@@ -66,11 +66,41 @@ WHERE p.id = :patientId
             @Param("doctorId") Long doctorId,
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime
-    );
+    );*/
 
     List<Appointment> findByDoctorIdAndStartTimeBetween(
             Long doctorId,
             LocalDateTime start,
             LocalDateTime end
+    );
+
+    List<Appointment> findByDoctorId(
+            Long doctorId
+    );
+
+    @Query("""
+SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END
+FROM Appointment a
+WHERE a.doctor.id = :doctorId
+AND (
+    :start < a.endTime
+    AND
+    :end > a.startTime
+)
+""")
+    boolean isDoctorBusy(
+            Long doctorId,
+            LocalDateTime start,
+            LocalDateTime end
+    );
+
+    @Query("""
+           SELECT a
+           FROM Appointment a
+           WHERE a.AppointmentDate BETWEEN :start AND :end
+           """)
+    List<Appointment> findAppointmentsBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
     );
 }

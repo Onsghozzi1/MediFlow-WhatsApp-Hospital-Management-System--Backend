@@ -1,14 +1,20 @@
 package com.example.MediFlow.services.impl;
 
 import com.example.MediFlow.Dtos.Patients.*;
+import com.example.MediFlow.entity.Doctor;
 import com.example.MediFlow.entity.Patient;
+import com.example.MediFlow.entity.User;
 import com.example.MediFlow.exception.PatientAlreadyExistsException;
 import com.example.MediFlow.mapper.PatientMapper;
 import com.example.MediFlow.repository.AppointmentRepository;
+import com.example.MediFlow.repository.DoctorRepository;
 import com.example.MediFlow.repository.PatientRepository;
+import com.example.MediFlow.repository.UserRepository;
 import com.example.MediFlow.repository.query.IPatientQuery;
 import com.example.MediFlow.services.IPatientService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -30,11 +36,17 @@ public class PatientServiceImpl implements IPatientService {
     private IPatientQuery iPatientQuery;
     @Autowired
     private AppointmentRepository appointmentRepository;
-
-
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private DoctorRepository doctorRepository;
     private static final String PREFIX = "MR-";
     private static final SecureRandom random = new SecureRandom();
-
+    private Authentication getAuthentication() {
+        return SecurityContextHolder
+                .getContext()
+                .getAuthentication();
+    }
 
     @Override
     public PatientDTO create_Patient(PatientDTO patientDTO) {
@@ -44,12 +56,21 @@ public class PatientServiceImpl implements IPatientService {
         if (exists) {
             throw new PatientAlreadyExistsException("Patient already exists with same full name and phone");
         }
+        Authentication authentication = getAuthentication();
+
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("user not found"));
+        Doctor doctor1 = doctorRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+
         // Convert DTO to Entity
         Patient entity = patientMapper.mapToPatient(patientDTO);
         entity.setCreate_date_time(LocalDateTime.now());
         entity.setMedical_Record_ID(generateMedicalRecordId());
         entity.setAge(Period.between(patientDTO.getBirthDate(), LocalDate.now()).getYears());
         entity.setAddress(patientDTO.getAddress());
+        entity.setDoctor(doctor1);
         entity.setIsDelete(false);
         // Sauvegarder en base
         Patient savedEntity = patientRepository.save(entity);
@@ -69,7 +90,13 @@ public class PatientServiceImpl implements IPatientService {
 
         Patient patient = patientRepository.findById(id_Patient)
                 .orElseThrow(() -> new RuntimeException("Patient not found with ID: " + id_Patient));
+        Authentication authentication = getAuthentication();
 
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("user not found"));
+        Doctor doctor1 = doctorRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
         // update timestamp
         patient.setUpdate_date_time(LocalDateTime.now());
 
@@ -80,7 +107,7 @@ public class PatientServiceImpl implements IPatientService {
         patient.setAddress(patientDTO.getAddress());
         patient.setGender(patientDTO.getGender());
         patient.setBirthDate(patientDTO.getBirthDate());
-
+         patient.setDoctor(doctor1);
         // recalcul age
         if (patientDTO.getBirthDate() != null) {
             patient.setAge(

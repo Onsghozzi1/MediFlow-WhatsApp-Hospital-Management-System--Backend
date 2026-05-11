@@ -30,5 +30,5 @@ public interface IAppointmentService {
     );
     Appointment moveAppointment(Long id, MoveAppointmentRequest request);
     Appointment_PatientDTO create_Appointment_patient(Appointment_PatientDTO appointmentPatientDTO);
-
+    public List<String> getBookedSlots(LocalDate date);
 }

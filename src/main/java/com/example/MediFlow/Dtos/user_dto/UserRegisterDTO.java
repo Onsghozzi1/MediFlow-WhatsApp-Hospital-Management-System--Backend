@@ -41,11 +41,11 @@ public class UserRegisterDTO {
     // =========================
     // PHONE
     // =========================
-    @NotBlank(message = "Phone number is required")
-    @Pattern(
-            regexp = "^[0-9]{8,15}$",
-            message = "Phone number must contain only digits (8-15)"
-    )
+//    @NotBlank(message = "Phone number is required")
+//    @Pattern(
+//            regexp = "^[0-9]{8,15}$",
+//            message = "Phone number must contain only digits (8-15)"
+//    )
     private String phoneNumber;
 
     // =========================

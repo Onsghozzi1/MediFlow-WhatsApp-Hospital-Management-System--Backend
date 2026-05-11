@@ -98,6 +98,7 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.CONFLICT) // 409 is correct here
                 .body(response);
     }
+
     @ExceptionHandler(AppointmentException.class)
     public ResponseEntity<?> handleAppointment(AppointmentException ex) {
 
@@ -107,5 +108,16 @@ public class GlobalExceptionHandler {
                         "code", "APPOINTMENT_EXISTS",
                         "message", ex.getMessage()
                 ));
+    }
+    @ExceptionHandler(InvalidBirthDateException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidBirthDate(InvalidBirthDateException ex) {
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("code", "INVALID_BIRTH_DATE");
+        response.put("message", ex.getMessage());
+
+        return ResponseEntity
+                .badRequest() // 400
+                .body(response);
     }
 }

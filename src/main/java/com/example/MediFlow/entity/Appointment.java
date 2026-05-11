@@ -24,8 +24,11 @@ public class Appointment {
     private LocalDateTime endTime;
     @ManyToOne
     private Patient patient;
+
     @ManyToOne
-    private User doctor;
+    @JoinColumn(name = "doctor_id", referencedColumnName = "id")
+    private Doctor doctor;
+
     @ManyToOne
     private Hospital hospital;
     @Enumerated(EnumType.STRING)

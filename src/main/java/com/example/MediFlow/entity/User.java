@@ -46,4 +46,6 @@ public class User {
 
     @ManyToOne(fetch = FetchType.LAZY)
     private Hospital hospital;
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private Doctor doctor;
 }

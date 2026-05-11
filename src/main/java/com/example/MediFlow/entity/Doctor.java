@@ -21,6 +21,13 @@ public class Doctor {
     private String specialty;
     private String phone;
     private String schedule;
+    // disponibilité du docteur
+    private boolean isAvailable;
 
+    // charge de travail (nb de patients / jour)
+    private int workload;
 
+    @OneToOne
+    @JoinColumn(name = "user_id")
+    private User user;
 }

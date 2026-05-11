@@ -6,10 +6,13 @@ import com.example.MediFlow.Dtos.Patients.PatientResponseDto;
 import com.example.MediFlow.Dtos.user_dto.AdminFilter;
 import com.example.MediFlow.Dtos.user_dto.AdminResponseDto;
 import com.example.MediFlow.Dtos.user_dto.UserDTO;
+import com.example.MediFlow.entity.Appointment;
+import com.example.MediFlow.entity.Doctor;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
 import com.example.MediFlow.mapper.UserMapper;
 import com.example.MediFlow.repository.AppointmentRepository;
+import com.example.MediFlow.repository.DoctorRepository;
 import com.example.MediFlow.repository.UserRepository;
 import com.example.MediFlow.repository.query.IPatientQuery;
 import com.example.MediFlow.repository.query.IUserQuery;
@@ -20,6 +23,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 
 import java.util.ArrayList;
@@ -41,6 +46,15 @@ public class PatientQueryImpl implements IPatientQuery {
 
     public PatientQueryImpl(EntityManager em) {
         this.em = em;
+    }
+
+    @Autowired
+    private DoctorRepository doctorRepository;
+
+    private Authentication getAuthentication() {
+        return SecurityContextHolder
+                .getContext()
+                .getAuthentication();
     }
     @Override
     public PatientResponseDto getPatientPagination(int pageNo, int pageSize, String sortBy, String sortDir, PatientFilter filter) {
@@ -95,8 +109,32 @@ public class PatientQueryImpl implements IPatientQuery {
             Root<Patient> root,
             CriteriaQuery<T> cq
     ) {
+        Authentication authentication = getAuthentication();
 
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Doctor doctor = doctorRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
         List<Predicate> predicates = new ArrayList<>();
+
+        // =========================
+        // JOIN APPOINTMENTS
+        // =========================
+        Join<Patient, Appointment> appointmentJoin =
+                root.join("appointments");
+
+        // =========================
+        // FILTER DOCTOR
+        // =========================
+        predicates.add(
+                cb.equal(
+                        appointmentJoin.get("doctor").get("id"),
+                        doctor.getId()
+                )
+        );
+
 
         // =========================
         // NOT DELETED
@@ -184,26 +222,50 @@ public class PatientQueryImpl implements IPatientQuery {
     private long countByGender(String gender, PatientFilter filter) {
 
         CriteriaBuilder cb = em.getCriteriaBuilder();
+
         CriteriaQuery<Long> cq = cb.createQuery(Long.class);
-        Root<Patient> root = cq.from(Patient.class);
+
+        Root<Patient> patient = cq.from(Patient.class);
+
+        Join<Patient, Appointment> appointment =
+                patient.join("appointments");
+
+        Authentication auth = getAuthentication();
+
+        String email = auth.getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Doctor doctor = doctorRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
 
         List<Predicate> predicates = new ArrayList<>();
 
-        // garder les filtres existants
-        Predicate[] basePredicates = getPredicates(filter, cb, root, cq);
-        for (Predicate p : basePredicates) {
-            predicates.add(p);
-        }
+        // 🔥 filter patient gender
+        predicates.add(
+                cb.equal(patient.get("gender"), gender)
+        );
 
-        // ajouter filtre gender
-        predicates.add(cb.equal(root.get("gender"), gender));
+        // 🔥 IMPORTANT: doctor filter via appointment
+        predicates.add(
+                cb.equal(
+                        appointment.get("doctor").get("id"),
+                        doctor.getId()
+                )
+        );
 
-        cq.select(cb.count(root));
+        // 🔥 not deleted appointments
+        predicates.add(
+                cb.equal(appointment.get("is_delete"), false)
+        );
+
+        cq.select(cb.countDistinct(patient));
+
         cq.where(predicates.toArray(new Predicate[0]));
 
         return em.createQuery(cq).getSingleResult();
-    }
-    private PatientDTO convertOneToDto(Patient patient, Set<Long> assignedIds) {
+    }    private PatientDTO convertOneToDto(Patient patient, Set<Long> assignedIds) {
 
         PatientDTO dto = new PatientDTO();
 
