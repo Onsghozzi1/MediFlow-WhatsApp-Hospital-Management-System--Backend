@@ -234,6 +234,7 @@ public class ConsultationQueryImpl implements IConsultationQuery {
         dto.setDiagnosis(consultation.getDiagnosis());
         dto.setNotes(consultation.getNotes());
          dto.setStatus(consultation.getStatus());
+         dto.setId(consultation.getId());
         return dto;
     }
 

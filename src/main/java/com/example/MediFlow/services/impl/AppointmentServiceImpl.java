@@ -6,6 +6,7 @@ import com.example.MediFlow.entity.Appointment;
 import com.example.MediFlow.entity.Doctor;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
+import com.example.MediFlow.entity.enums.Roles;
 import com.example.MediFlow.entity.enums.Status;
 import com.example.MediFlow.exception.*;
 import com.example.MediFlow.mapper.AppoimentMapper;
@@ -130,23 +131,64 @@ public class AppointmentServiceImpl implements IAppointmentService {
     }
     @Override
     public List<AllPatients> getAllAppointmentsPatient() {
+
         User user = getCurrentUser();
 
-        List<Appointment> appointments =
-                appointmentRepository.findPatientsByDoctorId(
-                        user.getDoctor().getId()
-                );
+        boolean isAdmin =
+                Roles.ADMIN.equals(user.getRoleTypes());
 
+        List<Appointment> appointments;
+
+        // =========================
+        // ADMIN => ALL APPOINTMENTS
+        // =========================
+
+        if (isAdmin) {
+
+            appointments =
+                    appointmentRepository.findAll();
+
+        }
+
+        // =========================
+        // DOCTOR => ONLY HIS APPOINTMENTS
+        // =========================
+
+        else {
+
+            Doctor doctor = doctorRepository
+                    .findByUserId(user.getId())
+                    .orElseThrow(() ->
+                            new RuntimeException("Doctor not found")
+                    );
+
+            appointments =
+                    appointmentRepository.findPatientsByDoctorId(
+                            doctor.getId()
+                    );
+        }
 
         return appointments.stream()
+
+                // avoid null patient
+                .filter(app -> app.getPatient() != null)
+
                 .map(app -> AllPatients.builder()
-                        .patientId(app.getPatient().getId())
-                        .fullName(app.getPatient().getFullName() )
+
+                        .patientId(
+                                app.getPatient().getId()
+                        )
+
+                        .fullName(
+                                app.getPatient().getFullName()
+                        )
 
                         .build())
+
+                .distinct()
+
                 .toList();
     }
-
     private Appointment_calendar mapToCalendar(Appointment a) {
 
         Appointment_calendar dto = new Appointment_calendar();
@@ -206,7 +248,6 @@ public class AppointmentServiceImpl implements IAppointmentService {
         patient.setCreate_date_time(LocalDateTime.now());
         patient.setMedical_Record_ID(generateMedicalRecordId());
         patient.setGender(dto.getGender());
-
         patient.setBirthDate(dto.getBirthDate());
 
 
@@ -303,6 +344,8 @@ public class AppointmentServiceImpl implements IAppointmentService {
 //        }        selectedDoctor.setAvailable(false);
        selectedDoctor.setWorkload(selectedDoctor.getWorkload() + 1);
 doctorRepository.save(selectedDoctor);
+        patient.setDoctor(selectedDoctor);
+
         patient = patientRepository.save(patient);
 
         Appointment appointment = new Appointment();

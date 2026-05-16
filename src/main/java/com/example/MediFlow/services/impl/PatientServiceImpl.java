@@ -6,6 +6,7 @@ import com.example.MediFlow.entity.Appointment;
 import com.example.MediFlow.entity.Doctor;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
+import com.example.MediFlow.entity.enums.Roles;
 import com.example.MediFlow.exception.PatientAlreadyExistsException;
 import com.example.MediFlow.exception.UserServiceCustomException;
 import com.example.MediFlow.mapper.PatientMapper;
@@ -151,10 +152,41 @@ User user =getCurrentUser();
 
     @Override
     public List_attributs_patients etListPatients() {
+
         User user = getCurrentUser();
 
+        boolean isAdmin =
+                Roles.ADMIN.equals(user.getRoleTypes());
 
-        List<Patient> patients = patientRepository.findByDoctorIdAndIsDeleteFalse(user.getDoctor().getId());
+        List<Patient> patients;
+
+        // =========================
+        // ADMIN => ALL PATIENTS
+        // =========================
+
+        if (isAdmin) {
+
+            patients = patientRepository.findAll();
+
+        }
+
+        // =========================
+        // DOCTOR => ONLY HIS PATIENTS
+        // =========================
+
+        else {
+
+            Doctor doctor = doctorRepository
+                    .findByUserId(user.getId())
+                    .orElseThrow(() ->
+                            new RuntimeException("Doctor not found")
+                    );
+
+            patients = patientRepository
+                    .findByDoctorIdAndIsDeleteFalse(
+                            doctor.getId()
+                    );
+        }
 
         List_attributs_patients dto = new List_attributs_patients();
 
@@ -167,11 +199,10 @@ User user =getCurrentUser();
 
         dto.setFull_name(
                 patients.stream()
-                        .map(p -> p.getFullName())
+                        .map(Patient::getFullName)
+                        .filter(Objects::nonNull)
                         .toList()
         );
-
-
 
         dto.setPhone(
                 patients.stream()
@@ -189,7 +220,6 @@ User user =getCurrentUser();
 
         return dto;
     }
-
     private Patient_AppointmentDto convertToDto(Patient patient) {
         Patient_AppointmentDto dto = new Patient_AppointmentDto();
         dto.setPatientId(patient.getId());

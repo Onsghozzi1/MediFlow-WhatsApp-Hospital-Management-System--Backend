@@ -8,6 +8,7 @@ import com.example.MediFlow.entity.Appointment;
 import com.example.MediFlow.entity.Doctor;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
+import com.example.MediFlow.entity.enums.Roles;
 import com.example.MediFlow.entity.enums.Status;
 import com.example.MediFlow.exception.UserServiceCustomException;
 import com.example.MediFlow.mapper.UserMapper;
@@ -111,23 +112,23 @@ apoimentsResponse.setUpcoming(stats.get("Upcoming"));
     }
 
     private <T> Predicate[] getPredicates(ApoimentFilter filter, CriteriaBuilder cb, Root< Appointment> root, CriteriaQuery<T> cq) {
-
-
-        User user = getCurrentUser();
-
-        Doctor doctor = doctorRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
         List<Predicate> predicates = new ArrayList<>();
         predicates.add(cb.equal(root.get("is_delete"), false));
+
         if (filter.getId() != null && filter.getId().longValue() > 0) {
             predicates.add(cb.equal(root.get("id"), filter.getId()));
         }
-
-        // 🔥 connected doctor only
-        predicates.add(
-                cb.equal(root.get("doctor").get("id"), doctor.getId())
-        );
-
+        User user = getCurrentUser();
+        boolean isAdmin =
+                user.getRoleTypes() == Roles.ADMIN;
+        if (!isAdmin) {
+            predicates.add(
+                    cb.equal(
+                            root.get("doctor").get("id"),
+                            user.getDoctor().getId()
+                    )
+            );
+        }
         if (filter.getPatient_name() != null
                 && !filter.getPatient_name().trim().isEmpty()) {
             predicates.add(
@@ -162,32 +163,54 @@ apoimentsResponse.setUpcoming(stats.get("Upcoming"));
 
         return predicates.toArray(new Predicate[0]);
     }
-    private Appoi_dto convertOneToDto( Appointment post) {
+    private Appoi_dto convertOneToDto(Appointment post) {
+
         Appoi_dto dto = new Appoi_dto();
+
         dto.setId(post.getId());
+
         dto.setStatus(post.getStatus());
+
         dto.setAppointmentDate(post.getAppointmentDate());
+
         dto.setPriority(post.getPriority());
-        dto.setStatus(post.getStatus());
+
         dto.setAppointmentType(post.getAppointment_Type());
-        // Check if patient exists to avoid NullPointerException
-        if (post.getPatient() != null) {
-            dto.setPatient_name(getPatient(post.getPatient().getId()));
-            dto.setPatientId(post.getPatient().getId());
-            dto.setWhatsApp_number(post.getPatient().getWhatsappNumber());
-        } else {
-            dto.setPatientId(null); // optional
-        }
 
-
-        String email = getCurrentUser().getEmail();
-
-        // Avoid NullPointerException for doctor
-        if (post.getDoctor() != null) {
-            dto.setDoctor_name(getDoctor(email));
-        }
         dto.setNotes(post.getNotes());
+
         dto.setReason(post.getReason());
+
+        // =========================
+        // PATIENT
+        // =========================
+
+        if (post.getPatient() != null) {
+
+            dto.setPatient_name(
+                    post.getPatient().getFullName()
+            );
+
+            dto.setPatientId(
+                    post.getPatient().getId()
+            );
+
+            dto.setWhatsApp_number(
+                    post.getPatient().getWhatsappNumber()
+            );
+        }
+
+        // =========================
+        // DOCTOR
+        // =========================
+
+        if (post.getDoctor() != null) {
+
+            dto.setDoctor_name(
+                    post.getDoctor().getName()
+            );
+        }
+
         return dto;
     }
 
@@ -209,81 +232,215 @@ apoimentsResponse.setUpcoming(stats.get("Upcoming"));
     private Map<String, Long> getAppointmentStats() {
 
         CriteriaBuilder cb = em.getCriteriaBuilder();
+
         User user = getCurrentUser();
+
+        boolean isAdmin =
+                Roles.ADMIN.equals(user.getRoleTypes());
+
+        Doctor doctor = null;
+
+        if (!isAdmin) {
+
+            doctor = doctorRepository
+                    .findByUserId(user.getId())
+                    .orElseThrow(() ->
+                            new RuntimeException("Doctor not found")
+                    );
+        }
+
+        Map<String, Long> stats = new HashMap<>();
 
         // ======================
         // TOTAL
         // ======================
-        CriteriaQuery<Long> totalQuery = cb.createQuery(Long.class);
-        Root<Appointment> root = totalQuery.from(Appointment.class);
 
-        totalQuery.select(cb.count(root)).where(cb.and(
-                cb.equal(root.get("is_delete"), false),
-                        cb.or(
-                                cb.equal(root.get("doctor").get("id"),user.getDoctor().getId()))
+        CriteriaQuery<Long> totalQuery =
+                cb.createQuery(Long.class);
 
+        Root<Appointment> totalRoot =
+                totalQuery.from(Appointment.class);
 
+        List<Predicate> totalPredicates =
+                new ArrayList<>();
 
-        ));
+        totalPredicates.add(
+                cb.equal(
+                        totalRoot.get("is_delete"),
+                        false
+                )
+        );
 
-        Long total = em.createQuery(totalQuery).getSingleResult();
+        if (!isAdmin) {
+
+            totalPredicates.add(
+                    cb.equal(
+                            totalRoot.get("doctor").get("id"),
+                            doctor.getId()
+                    )
+            );
+        }
+
+        totalQuery.select(cb.count(totalRoot));
+
+        totalQuery.where(
+                totalPredicates.toArray(new Predicate[0])
+        );
+
+        Long total =
+                em.createQuery(totalQuery)
+                        .getSingleResult();
 
         // ======================
         // TODAY
         // ======================
-        CriteriaQuery<Long> todayQuery = cb.createQuery(Long.class);
-        Root<Appointment> todayRoot = todayQuery.from(Appointment.class);
 
-        todayQuery.select(cb.count(todayRoot)).where(cb.and(
-                cb.equal(todayRoot.get("is_delete"), false),
-                cb.equal(todayRoot.get("doctor").get("id"),user.getDoctor().getId()),
-                cb.equal(todayRoot.get("AppointmentDate"), LocalDate.now())
-        ));
+        CriteriaQuery<Long> todayQuery =
+                cb.createQuery(Long.class);
 
-        Long today = em.createQuery(todayQuery).getSingleResult();
+        Root<Appointment> todayRoot =
+                todayQuery.from(Appointment.class);
+
+        List<Predicate> todayPredicates =
+                new ArrayList<>();
+
+        todayPredicates.add(
+                cb.equal(
+                        todayRoot.get("is_delete"),
+                        false
+                )
+        );
+
+        if (!isAdmin) {
+
+            todayPredicates.add(
+                    cb.equal(
+                            todayRoot.get("doctor").get("id"),
+                            doctor.getId()
+                    )
+            );
+        }
+
+        todayPredicates.add(
+                cb.equal(
+                        todayRoot.get("AppointmentDate"),
+                        LocalDate.now()
+                )
+        );
+
+        todayQuery.select(cb.count(todayRoot));
+
+        todayQuery.where(
+                todayPredicates.toArray(new Predicate[0])
+        );
+
+        Long today =
+                em.createQuery(todayQuery)
+                        .getSingleResult();
 
         // ======================
         // COMPLETED
         // ======================
-        CriteriaQuery<Long> completedQuery = cb.createQuery(Long.class);
-        Root<Appointment> completedRoot = completedQuery.from(Appointment.class);
 
-        completedQuery.select(cb.count(completedRoot)).where(cb.and(
-                cb.equal(completedRoot.get("is_delete"), false),
-                cb.equal(completedRoot.get("doctor").get("id"), user.getDoctor().getId()),
-                completedRoot.get("status").in(Status.DONE, Status.COMPLETED)
+        CriteriaQuery<Long> completedQuery =
+                cb.createQuery(Long.class);
 
-        ));
+        Root<Appointment> completedRoot =
+                completedQuery.from(Appointment.class);
 
-        Long completed = em.createQuery(completedQuery).getSingleResult();
+        List<Predicate> completedPredicates =
+                new ArrayList<>();
+
+        completedPredicates.add(
+                cb.equal(
+                        completedRoot.get("is_delete"),
+                        false
+                )
+        );
+
+        if (!isAdmin) {
+
+            completedPredicates.add(
+                    cb.equal(
+                            completedRoot.get("doctor").get("id"),
+                            doctor.getId()
+                    )
+            );
+        }
+
+        completedPredicates.add(
+                completedRoot.get("status")
+                        .in(Status.DONE, Status.COMPLETED)
+        );
+
+        completedQuery.select(cb.count(completedRoot));
+
+        completedQuery.where(
+                completedPredicates.toArray(new Predicate[0])
+        );
+
+        Long completed =
+                em.createQuery(completedQuery)
+                        .getSingleResult();
 
         // ======================
         // UPCOMING
         // ======================
-        CriteriaQuery<Long> upcomingQuery = cb.createQuery(Long.class);
-        Root<Appointment> upcomingRoot = upcomingQuery.from(Appointment.class);
 
-        upcomingQuery.select(cb.count(upcomingRoot)).where(cb.and(
-                cb.equal(upcomingRoot.get("is_delete"), false),
-                cb.equal(upcomingRoot.get("doctor").get("id"), user.getDoctor().getId()),
-                cb.greaterThan(upcomingRoot.get("AppointmentDate"), LocalDate.now()),
+        CriteriaQuery<Long> upcomingQuery =
+                cb.createQuery(Long.class);
 
+        Root<Appointment> upcomingRoot =
+                upcomingQuery.from(Appointment.class);
 
-                        upcomingRoot.get("status").in(
-                                Status.PENDING,
-                                Status.CONFIRMED,
-                                Status.SCHEDULED
-                        )
+        List<Predicate> upcomingPredicates =
+                new ArrayList<>();
 
+        upcomingPredicates.add(
+                cb.equal(
+                        upcomingRoot.get("is_delete"),
+                        false
+                )
+        );
 
-        ));
+        if (!isAdmin) {
 
-        Long upcoming = em.createQuery(upcomingQuery).getSingleResult();
+            upcomingPredicates.add(
+                    cb.equal(
+                            upcomingRoot.get("doctor").get("id"),
+                            doctor.getId()
+                    )
+            );
+        }
+
+        upcomingPredicates.add(
+                cb.greaterThan(
+                        upcomingRoot.get("AppointmentDate"),
+                        LocalDate.now()
+                )
+        );
+
+        upcomingPredicates.add(
+                upcomingRoot.get("status").in(
+                        Status.PENDING,
+                        Status.CONFIRMED,
+                        Status.SCHEDULED
+                )
+        );
+
+        upcomingQuery.select(cb.count(upcomingRoot));
+
+        upcomingQuery.where(
+                upcomingPredicates.toArray(new Predicate[0])
+        );
+
+        Long upcoming =
+                em.createQuery(upcomingQuery)
+                        .getSingleResult();
 
         // ======================
-        // RESULT MAP
+        // RESULT
         // ======================
-        Map<String, Long> stats = new HashMap<>();
 
         stats.put("total_Appointments", total);
         stats.put("today_Appointments", today);
@@ -291,4 +448,7 @@ apoimentsResponse.setUpcoming(stats.get("Upcoming"));
         stats.put("Upcoming", upcoming);
 
         return stats;
-    }}
+    }
+
+
+}

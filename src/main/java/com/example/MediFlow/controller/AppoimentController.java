@@ -100,8 +100,6 @@ public class AppoimentController {
     public ResponseEntity<?> send(
             @RequestBody WhatsAppMessageDto dto
     ) {
-
-        System.out.println("dtoooo "+dto);
         String response =
                 whatsAppService.sendMessage(
                         dto.getPhone(),

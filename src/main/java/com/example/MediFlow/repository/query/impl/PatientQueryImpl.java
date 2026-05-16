@@ -10,6 +10,7 @@ import com.example.MediFlow.entity.Appointment;
 import com.example.MediFlow.entity.Doctor;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
+import com.example.MediFlow.entity.enums.Roles;
 import com.example.MediFlow.exception.UserServiceCustomException;
 import com.example.MediFlow.mapper.UserMapper;
 import com.example.MediFlow.repository.AppointmentRepository;
@@ -117,20 +118,36 @@ public class PatientQueryImpl implements IPatientQuery {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Doctor doctor = doctorRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
 
         List<Predicate> predicates = new ArrayList<>();
 
         // لازم distinct باش ما يتكرروش patients
         cq.distinct(true);
+        boolean isAdmin =
+                user.getRoleTypes() == Roles.ADMIN;
 
-        // LEFT JOIN خاطر patient ينجم ما عندوش appointment
-        predicates.add(
-                cb.or(
-                        cb.equal(root.get("doctor").get("id"),user.getDoctor().getId())
-                )
-        );
+        System.out.println("isAdmin = " + isAdmin);
+
+        // =========================
+        // DOCTOR FILTER ONLY
+        // =========================
+
+        if (!isAdmin) {
+
+            Doctor doctor = doctorRepository
+                    .findByUserId(user.getId())
+                    .orElseThrow(() ->
+                            new RuntimeException("Doctor not found")
+                    );
+
+            predicates.add(
+                    cb.equal(
+                            root.get("doctor").get("id"),
+                            user.getDoctor().getId()
+                    )
+            );
+        }
+
         // =========================
         // NOT DELETED
         // =========================
@@ -224,27 +241,29 @@ public class PatientQueryImpl implements IPatientQuery {
 
         User currentUser = getCurrentUser();
 
-        Doctor doctor = doctorRepository
-                .findByUserId(currentUser.getId())
-                .orElseThrow(() ->
-                        new RuntimeException("Doctor not found")
-                );
-
         List<Predicate> predicates = new ArrayList<>();
 
-        // =========================
-        // FILTER BY CURRENT DOCTOR
-        // =========================
-        predicates.add(
-                cb.equal(
-                        patient.get("doctor").get("id"),
-                        doctor.getId()
-                )
-        );
+        boolean isAdmin =
+                currentUser.getRoleTypes() == Roles.ADMIN;
 
-        // =========================
-        // FILTER BY GENDER
-        // =========================
+        // doctor only
+        if (!isAdmin) {
+
+            Doctor doctor = doctorRepository
+                    .findByUserId(currentUser.getId())
+                    .orElseThrow(() ->
+                            new RuntimeException("Doctor not found")
+                    );
+
+            predicates.add(
+                    cb.equal(
+                            patient.get("doctor").get("id"),
+                            doctor.getId()
+                    )
+            );
+        }
+
+        // gender
         predicates.add(
                 cb.equal(
                         patient.get("gender"),
@@ -252,9 +271,7 @@ public class PatientQueryImpl implements IPatientQuery {
                 )
         );
 
-        // =========================
-        // NOT DELETED
-        // =========================
+        // not deleted
         predicates.add(
                 cb.equal(
                         patient.get("isDelete"),
@@ -268,7 +285,6 @@ public class PatientQueryImpl implements IPatientQuery {
 
         return em.createQuery(cq).getSingleResult();
     }
-
 
     private PatientDTO convertOneToDto(Patient patient, Set<Long> assignedIds) {
 
