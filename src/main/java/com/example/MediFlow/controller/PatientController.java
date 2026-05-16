@@ -2,6 +2,7 @@ package com.example.MediFlow.controller;
 
 import com.example.MediFlow.Dtos.ApiResponse;
 import com.example.MediFlow.Dtos.Patients.*;
+import com.example.MediFlow.Dtos.consultation.PatientCardDTO;
 import com.example.MediFlow.Dtos.user_dto.AdminFilter;
 import com.example.MediFlow.Dtos.user_dto.AdminResponseDto;
 import com.example.MediFlow.entity.Patient;
@@ -79,6 +80,12 @@ public class PatientController {
     @GetMapping("/all_list_patients")
     public ResponseEntity<List_attributs_patients> ListPatients() {
       List_attributs_patients patients = iPatientService.etListPatients();
+        return ResponseEntity.ok(patients);
+    }
+
+    @GetMapping("/list_consultation_patients")
+    public ResponseEntity<List<PatientCardDTO>> List_patient_consultation() {
+        List<PatientCardDTO> patients = iPatientService.getListPatients();
         return ResponseEntity.ok(patients);
     }
 }

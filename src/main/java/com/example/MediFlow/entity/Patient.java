@@ -21,6 +21,7 @@ public class Patient {
     @Column(unique = true, nullable = false)
     private String whatsappNumber;
     private LocalDate birthDate;
+    private Boolean patient_activated;
 
     @Column(name = "medical_record_id", unique = true, nullable = false, updatable = false)
     private String medical_Record_ID;

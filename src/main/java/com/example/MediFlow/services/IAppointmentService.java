@@ -22,12 +22,6 @@ public interface IAppointmentService {
             Long doctorId,
             LocalDate date
     );
-    public Appointment createAppointment2(
-            Long doctorId,
-            String patientName,
-            LocalDate date,
-            LocalTime startTime
-    );
     Appointment moveAppointment(Long id, MoveAppointmentRequest request);
     Appointment_PatientDTO create_Appointment_patient(Appointment_PatientDTO appointmentPatientDTO);
     public List<String> getBookedSlots(LocalDate date);

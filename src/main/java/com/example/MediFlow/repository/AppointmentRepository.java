@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Repository
@@ -102,5 +103,43 @@ AND (
     List<Appointment> findAppointmentsBetween(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
+    );
+
+
+  /*  @Query(value = """
+SELECT *
+FROM appointment a
+WHERE a.doctor_id = :doctorId
+AND DATE(a.appointment_date) = CURRENT_DATE
+AND a.appointment_date >= NOW()
+ORDER BY a.appointment_date ASC
+""", nativeQuery = true)
+    List<Appointment> findTodayUpcomingAppointments(
+            @Param("doctorId") Long doctorId
+    );
+*/
+  @Query(value = """
+SELECT *
+FROM appointment a
+WHERE a.doctor_id = :doctorId
+AND DATE(a.appointment_date) = CURRENT_DATE
+AND CURRENT_TIMESTAMP BETWEEN a.start_time AND a.end_time
+ORDER BY a.start_time ASC
+""", nativeQuery = true)
+  List<Appointment> findTodayActiveAppointments(
+          @Param("doctorId") Long doctorId
+  );
+
+    @Query("""
+SELECT a
+FROM Appointment a
+WHERE a.doctor.id = :doctorId
+AND a.startTime > :now
+ORDER BY a.startTime ASC
+LIMIT 1
+""")
+    Optional<Appointment> findNextAppointment(
+            Long doctorId,
+            LocalDateTime now
     );
 }

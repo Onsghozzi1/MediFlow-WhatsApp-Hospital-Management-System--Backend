@@ -10,6 +10,7 @@ import com.example.MediFlow.entity.Appointment;
 import com.example.MediFlow.entity.Doctor;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
+import com.example.MediFlow.exception.UserServiceCustomException;
 import com.example.MediFlow.mapper.UserMapper;
 import com.example.MediFlow.repository.AppointmentRepository;
 import com.example.MediFlow.repository.DoctorRepository;
@@ -51,11 +52,13 @@ public class PatientQueryImpl implements IPatientQuery {
     @Autowired
     private DoctorRepository doctorRepository;
 
-    private Authentication getAuthentication() {
-        return SecurityContextHolder
-                .getContext()
-                .getAuthentication();
+    public User getCurrentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserServiceCustomException("User not found","error"));
     }
+
     @Override
     public PatientResponseDto getPatientPagination(int pageNo, int pageSize, String sortBy, String sortDir, PatientFilter filter) {
         PatientResponseDto patientResponseDto = new PatientResponseDto();
@@ -109,33 +112,25 @@ public class PatientQueryImpl implements IPatientQuery {
             Root<Patient> root,
             CriteriaQuery<T> cq
     ) {
-        Authentication authentication = getAuthentication();
 
-        String email = authentication.getName();
+        String email = getCurrentUser().getEmail();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Doctor doctor = doctorRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new RuntimeException("Doctor not found"));
+
         List<Predicate> predicates = new ArrayList<>();
 
-        // =========================
-        // JOIN APPOINTMENTS
-        // =========================
-        Join<Patient, Appointment> appointmentJoin =
-                root.join("appointments");
+        // لازم distinct باش ما يتكرروش patients
+        cq.distinct(true);
 
-        // =========================
-        // FILTER DOCTOR
-        // =========================
+        // LEFT JOIN خاطر patient ينجم ما عندوش appointment
         predicates.add(
-                cb.equal(
-                        appointmentJoin.get("doctor").get("id"),
-                        doctor.getId()
+                cb.or(
+                        cb.equal(root.get("doctor").get("id"),user.getDoctor().getId())
                 )
         );
-
-
         // =========================
         // NOT DELETED
         // =========================
@@ -227,37 +222,44 @@ public class PatientQueryImpl implements IPatientQuery {
 
         Root<Patient> patient = cq.from(Patient.class);
 
-        Join<Patient, Appointment> appointment =
-                patient.join("appointments");
+        User currentUser = getCurrentUser();
 
-        Authentication auth = getAuthentication();
-
-        String email = auth.getName();
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Doctor doctor = doctorRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+        Doctor doctor = doctorRepository
+                .findByUserId(currentUser.getId())
+                .orElseThrow(() ->
+                        new RuntimeException("Doctor not found")
+                );
 
         List<Predicate> predicates = new ArrayList<>();
 
-        // 🔥 filter patient gender
-        predicates.add(
-                cb.equal(patient.get("gender"), gender)
-        );
-
-        // 🔥 IMPORTANT: doctor filter via appointment
+        // =========================
+        // FILTER BY CURRENT DOCTOR
+        // =========================
         predicates.add(
                 cb.equal(
-                        appointment.get("doctor").get("id"),
+                        patient.get("doctor").get("id"),
                         doctor.getId()
                 )
         );
 
-        // 🔥 not deleted appointments
+        // =========================
+        // FILTER BY GENDER
+        // =========================
         predicates.add(
-                cb.equal(appointment.get("is_delete"), false)
+                cb.equal(
+                        patient.get("gender"),
+                        gender
+                )
+        );
+
+        // =========================
+        // NOT DELETED
+        // =========================
+        predicates.add(
+                cb.equal(
+                        patient.get("isDelete"),
+                        false
+                )
         );
 
         cq.select(cb.countDistinct(patient));
@@ -265,7 +267,10 @@ public class PatientQueryImpl implements IPatientQuery {
         cq.where(predicates.toArray(new Predicate[0]));
 
         return em.createQuery(cq).getSingleResult();
-    }    private PatientDTO convertOneToDto(Patient patient, Set<Long> assignedIds) {
+    }
+
+
+    private PatientDTO convertOneToDto(Patient patient, Set<Long> assignedIds) {
 
         PatientDTO dto = new PatientDTO();
 
@@ -280,7 +285,6 @@ public class PatientQueryImpl implements IPatientQuery {
             dto.setPatient_activated(true);
 
         }
-
         dto.setPhone(patient.getPhone());
         dto.setMedicalHistory(patient.getMedicalHistory());
         dto.setBirthDate(patient.getBirthDate());
@@ -289,7 +293,6 @@ public class PatientQueryImpl implements IPatientQuery {
         dto.setAddress(patient.getAddress());
         dto.setAge(patient.getAge());
         dto.setMedical_Record_ID(patient.getMedical_Record_ID());
-
         return dto;
     }
 

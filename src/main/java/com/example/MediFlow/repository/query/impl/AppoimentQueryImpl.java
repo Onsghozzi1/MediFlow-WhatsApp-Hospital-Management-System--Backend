@@ -9,6 +9,7 @@ import com.example.MediFlow.entity.Doctor;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
 import com.example.MediFlow.entity.enums.Status;
+import com.example.MediFlow.exception.UserServiceCustomException;
 import com.example.MediFlow.mapper.UserMapper;
 import com.example.MediFlow.repository.AppointmentRepository;
 import com.example.MediFlow.repository.DoctorRepository;
@@ -53,10 +54,11 @@ public class AppoimentQueryImpl implements IAppoimentQuery {
     public AppoimentQueryImpl(EntityManager em) {
         this.em = em;
     }
-    private Authentication getAuthentication() {
-        return SecurityContextHolder
-                .getContext()
-                .getAuthentication();
+    public User getCurrentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserServiceCustomException("User not found","error"));
     }
 
 
@@ -110,11 +112,8 @@ apoimentsResponse.setUpcoming(stats.get("Upcoming"));
 
     private <T> Predicate[] getPredicates(ApoimentFilter filter, CriteriaBuilder cb, Root< Appointment> root, CriteriaQuery<T> cq) {
 
-        Authentication authentication = getAuthentication();
 
-        String email = authentication.getName();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = getCurrentUser();
 
         Doctor doctor = doctorRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new RuntimeException("Doctor not found"));
@@ -175,13 +174,13 @@ apoimentsResponse.setUpcoming(stats.get("Upcoming"));
         if (post.getPatient() != null) {
             dto.setPatient_name(getPatient(post.getPatient().getId()));
             dto.setPatientId(post.getPatient().getId());
+            dto.setWhatsApp_number(post.getPatient().getWhatsappNumber());
         } else {
             dto.setPatientId(null); // optional
         }
 
-        Authentication authentication = getAuthentication();
 
-        String email = authentication.getName();
+        String email = getCurrentUser().getEmail();
 
         // Avoid NullPointerException for doctor
         if (post.getDoctor() != null) {
@@ -210,16 +209,7 @@ apoimentsResponse.setUpcoming(stats.get("Upcoming"));
     private Map<String, Long> getAppointmentStats() {
 
         CriteriaBuilder cb = em.getCriteriaBuilder();
-
-        Authentication authentication = getAuthentication();
-
-        String email = authentication.getName();
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Doctor doctor = doctorRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+        User user = getCurrentUser();
 
         // ======================
         // TOTAL
@@ -229,7 +219,11 @@ apoimentsResponse.setUpcoming(stats.get("Upcoming"));
 
         totalQuery.select(cb.count(root)).where(cb.and(
                 cb.equal(root.get("is_delete"), false),
-                cb.equal(root.get("doctor").get("id"), doctor.getId())
+                        cb.or(
+                                cb.equal(root.get("doctor").get("id"),user.getDoctor().getId()))
+
+
+
         ));
 
         Long total = em.createQuery(totalQuery).getSingleResult();
@@ -242,7 +236,7 @@ apoimentsResponse.setUpcoming(stats.get("Upcoming"));
 
         todayQuery.select(cb.count(todayRoot)).where(cb.and(
                 cb.equal(todayRoot.get("is_delete"), false),
-                cb.equal(todayRoot.get("doctor").get("id"), doctor.getId()),
+                cb.equal(todayRoot.get("doctor").get("id"),user.getDoctor().getId()),
                 cb.equal(todayRoot.get("AppointmentDate"), LocalDate.now())
         ));
 
@@ -256,8 +250,9 @@ apoimentsResponse.setUpcoming(stats.get("Upcoming"));
 
         completedQuery.select(cb.count(completedRoot)).where(cb.and(
                 cb.equal(completedRoot.get("is_delete"), false),
-                cb.equal(completedRoot.get("doctor").get("id"), doctor.getId()),
-                cb.equal(completedRoot.get("status"), Status.DONE)
+                cb.equal(completedRoot.get("doctor").get("id"), user.getDoctor().getId()),
+                completedRoot.get("status").in(Status.DONE, Status.COMPLETED)
+
         ));
 
         Long completed = em.createQuery(completedQuery).getSingleResult();
@@ -270,12 +265,17 @@ apoimentsResponse.setUpcoming(stats.get("Upcoming"));
 
         upcomingQuery.select(cb.count(upcomingRoot)).where(cb.and(
                 cb.equal(upcomingRoot.get("is_delete"), false),
-                cb.equal(upcomingRoot.get("doctor").get("id"), doctor.getId()),
+                cb.equal(upcomingRoot.get("doctor").get("id"), user.getDoctor().getId()),
                 cb.greaterThan(upcomingRoot.get("AppointmentDate"), LocalDate.now()),
-                cb.or(
-                        cb.equal(upcomingRoot.get("status"), Status.PENDING),
-                        cb.equal(upcomingRoot.get("status"), Status.CONFIRMED)
-                )
+
+
+                        upcomingRoot.get("status").in(
+                                Status.PENDING,
+                                Status.CONFIRMED,
+                                Status.SCHEDULED
+                        )
+
+
         ));
 
         Long upcoming = em.createQuery(upcomingQuery).getSingleResult();

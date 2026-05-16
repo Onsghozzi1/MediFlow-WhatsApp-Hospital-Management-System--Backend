@@ -7,10 +7,7 @@ import com.example.MediFlow.entity.Doctor;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
 import com.example.MediFlow.entity.enums.Status;
-import com.example.MediFlow.exception.AppointmentException;
-import com.example.MediFlow.exception.DoctorException;
-import com.example.MediFlow.exception.InvalidBirthDateException;
-import com.example.MediFlow.exception.PatientAlreadyExistsException;
+import com.example.MediFlow.exception.*;
 import com.example.MediFlow.mapper.AppoimentMapper;
 import com.example.MediFlow.repository.AppointmentRepository;
 import com.example.MediFlow.repository.DoctorRepository;
@@ -48,30 +45,30 @@ public class AppointmentServiceImpl implements IAppointmentService {
     private static final String PREFIX = "MR-";
     private static final SecureRandom random = new SecureRandom();
 
-    private Authentication getAuthentication() {
-        return SecurityContextHolder
-                .getContext()
-                .getAuthentication();
+    public User getCurrentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserServiceCustomException("User not found","error"));
     }
 
     @Transactional
     @Override
     public AppoimentsDto create(AppoimentsDto dto) {
-        Authentication authentication = getAuthentication();
-
-        String email = authentication.getName();
 
         Patient patient = patientRepository.findById(dto.getPatientId())
-                .orElseThrow(() -> new RuntimeException("Patient not found"));
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("user not found"));
-        Doctor doctor1 = doctorRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+                .orElseThrow(() -> new PatientAlreadyExistsException("Patient not found"));
+
+        User user = getCurrentUser();
+        Doctor doctor = doctorRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new DoctorException("Doctor not found"));
         Appointment appointment = new Appointment();
         appointment.setPatient(patient);
-        appointment.setDoctor(doctor1);
+        appointment.setDoctor(doctor);
         appointment.setAppointmentDate(dto.getAppointmentDate());
-        appointment.setStatus(dto.getStatus());
+        appointment.setStartTime(dto.getAppointmentDate());
+        appointment.setEndTime(dto.getAppointmentDate().plusMinutes(30));
+        appointment.setStatus(Status.SCHEDULED);
         appointment.setAppointment_Type(dto.getAppointmentType());
         appointment.setPriority(dto.getPriority());
         appointment.setReason(dto.getReason());
@@ -86,7 +83,7 @@ public class AppointmentServiceImpl implements IAppointmentService {
     }
     public void changeDeleteStatus(Long id) {
         Appointment appointment = appointmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Appointment not found"));
+                .orElseThrow(() -> new AppointmentException("Appointment not found"));
         appointment.setIs_delete(true);
         appointmentRepository.save(appointment);
     }
@@ -95,21 +92,17 @@ public class AppointmentServiceImpl implements IAppointmentService {
     public AppoimentsDto update(Long id, AppoimentsDto dto) {
 
         Appointment appointment = appointmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Appointment not found"));
+                .orElseThrow(() -> new AppointmentException("Appointment not found"));
 
         Patient patient = patientRepository.findById(dto.getPatientId())
-                .orElseThrow(() -> new RuntimeException("Patient not found"));
-
-
-        User user = userRepository.findByEmail(dto.getDoctorEmail())
-                .orElseThrow(() -> new RuntimeException("user not found"));
-        Doctor doctor1 = doctorRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
-
+                .orElseThrow(() -> new PatientAlreadyExistsException("Patient not found"));
+        User user = getCurrentUser();
+        Doctor doctor = doctorRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new DoctorException("Doctor not found"));
 
         // update fields only (no recreate)
         appointment.setPatient(patient);
-        appointment.setDoctor(doctor1);
+        appointment.setDoctor(doctor);
         appointment.setAppointmentDate(dto.getAppointmentDate());
         appointment.setAppointment_Type(dto.getAppointmentType());
         appointment.setStatus(dto.getStatus());
@@ -125,15 +118,9 @@ public class AppointmentServiceImpl implements IAppointmentService {
     @Override
     public List<Appointment_calendar> getAllAppointments() {
 
-        Authentication authentication = getAuthentication();
-
-        String email = authentication.getName();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+        User user = getCurrentUser();
         Doctor doctor = doctorRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
-
+                .orElseThrow(() -> new DoctorException("Doctor not found"));
         List<Appointment> appointments =
                 appointmentRepository.findByDoctorId(doctor.getId());
 
@@ -168,46 +155,11 @@ public class AppointmentServiceImpl implements IAppointmentService {
         return dto;
     }
 
-    public Appointment createAppointment2(
-            Long doctorId,
-            String patientName,
-            LocalDate date,
-            LocalTime startTime
-    ) {
-
-//        User user = userRepository.getReferenceById(doctorId);
-//        Doctor doctor1 = doctorRepository.findByUserId(user.getId())
-//                .orElseThrow(() -> new RuntimeException("Doctor not found"));
-//        LocalDateTime start = LocalDateTime.of(date, startTime);
-//
-//        LocalDateTime end = start.plusMinutes(30);
-//
-//        boolean conflict =
-//                appointmentRepository.existsConflict(
-//                        doctorId,
-//                        start,
-//                        end
-//                );
-//
-//        if (conflict) {
-//            throw new RuntimeException(
-//                    "This slot is already reserved"
-//            );
-//        }
-//        Appointment appointment = new Appointment();
-//        appointment.setDoctor(doctor1);
-//        appointment.setStartTime(start);
-//        appointment.setEndTime(end);
-//        appointment.setStatus(Status.CONFIRMED);
-//        return appointmentRepository.save(appointment);
-//
-return  null;}
-
     @Override
     public Appointment moveAppointment(Long id, MoveAppointmentRequest request) {
 
         Appointment appointment = appointmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Appointment not found"));
+                .orElseThrow(() -> new AppointmentException("Appointment not found"));
 
         appointment.setAppointmentDate(request.getAppointmentDate());
         appointment.setEndTime(request.getEndDate());
@@ -355,7 +307,7 @@ doctorRepository.save(selectedDoctor);
         appointment.setIs_delete(false);
         appointment.setPatient(patient);
         appointment.setPriority(dto.getReason());
-        appointment.setStatus(Status.CONFIRMED);
+        appointment.setStatus(Status.SCHEDULED);
        appointment.setDoctor(selectedDoctor);
         appointmentRepository.save(appointment);
 

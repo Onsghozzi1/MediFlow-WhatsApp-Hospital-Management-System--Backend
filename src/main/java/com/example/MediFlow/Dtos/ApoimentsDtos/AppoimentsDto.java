@@ -27,8 +27,6 @@ public class AppoimentsDto {
     @Enumerated(EnumType.STRING)
     @NotNull(message = "Appointment type is required")
     private AppointmentType appointmentType;
-
-    @NotBlank(message = "Doctor is required")
     private String doctorEmail;
 
     private String notes;

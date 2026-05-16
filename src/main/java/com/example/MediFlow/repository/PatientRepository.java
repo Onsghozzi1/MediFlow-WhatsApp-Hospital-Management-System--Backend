@@ -15,5 +15,7 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     List<Patient> findByIsDeleteFalse();
     Optional<Patient> findByPhone(String phone);
     boolean existsByPhone(String phone);
+    List<Patient> findByDoctorIdAndIsDeleteFalse(Long doctorId);
+
 
 }

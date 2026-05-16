@@ -1,10 +1,13 @@
 package com.example.MediFlow.services.impl;
 
 import com.example.MediFlow.Dtos.Patients.*;
+import com.example.MediFlow.Dtos.consultation.PatientCardDTO;
+import com.example.MediFlow.entity.Appointment;
 import com.example.MediFlow.entity.Doctor;
 import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.entity.User;
 import com.example.MediFlow.exception.PatientAlreadyExistsException;
+import com.example.MediFlow.exception.UserServiceCustomException;
 import com.example.MediFlow.mapper.PatientMapper;
 import com.example.MediFlow.repository.AppointmentRepository;
 import com.example.MediFlow.repository.DoctorRepository;
@@ -21,9 +24,7 @@ import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 @Service
 public class PatientServiceImpl implements IPatientService {
@@ -42,12 +43,13 @@ public class PatientServiceImpl implements IPatientService {
     private DoctorRepository doctorRepository;
     private static final String PREFIX = "MR-";
     private static final SecureRandom random = new SecureRandom();
-    private Authentication getAuthentication() {
-        return SecurityContextHolder
-                .getContext()
-                .getAuthentication();
-    }
 
+    public User getCurrentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserServiceCustomException("User not found","error"));
+    }
     @Override
     public PatientDTO create_Patient(PatientDTO patientDTO) {
         // ✅ Check if patient already exists
@@ -56,11 +58,8 @@ public class PatientServiceImpl implements IPatientService {
         if (exists) {
             throw new PatientAlreadyExistsException("Patient already exists with same full name and phone");
         }
-        Authentication authentication = getAuthentication();
+        User user=getCurrentUser();
 
-        String email = authentication.getName();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("user not found"));
         Doctor doctor1 = doctorRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new RuntimeException("Doctor not found"));
 
@@ -71,7 +70,7 @@ public class PatientServiceImpl implements IPatientService {
         entity.setAge(Period.between(patientDTO.getBirthDate(), LocalDate.now()).getYears());
         entity.setAddress(patientDTO.getAddress());
         entity.setDoctor(doctor1);
-        entity.setIsDelete(false);
+                entity.setIsDelete(false);
         // Sauvegarder en base
         Patient savedEntity = patientRepository.save(entity);
         return mapToDto(savedEntity);
@@ -90,17 +89,12 @@ public class PatientServiceImpl implements IPatientService {
 
         Patient patient = patientRepository.findById(id_Patient)
                 .orElseThrow(() -> new RuntimeException("Patient not found with ID: " + id_Patient));
-        Authentication authentication = getAuthentication();
 
-        String email = authentication.getName();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("user not found"));
+        User user=getCurrentUser();
         Doctor doctor1 = doctorRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new RuntimeException("Doctor not found"));
         // update timestamp
         patient.setUpdate_date_time(LocalDateTime.now());
-
-        // update fields FROM DTO (IMPORTANT FIX)
         patient.setFullName(patientDTO.getFullName());
         patient.setPhone(patientDTO.getPhone());
         patient.setWhatsappNumber(patientDTO.getWhatsappNumber());
@@ -138,8 +132,8 @@ public class PatientServiceImpl implements IPatientService {
 
     @Override
     public List<Patient_AppointmentDto> getAllPatients(Long appointmentId) {
-
-        List<Patient> patients = patientRepository.findByIsDeleteFalse();
+User user =getCurrentUser();
+        List<Patient> patients = patientRepository.findByDoctorIdAndIsDeleteFalse(user.getDoctor().getId());
 
         Set<Long> blockedIds;
         if (appointmentId == null) {
@@ -200,6 +194,97 @@ public class PatientServiceImpl implements IPatientService {
         dto.setFullName(patient.getFullName());
         return dto;
     }
+    @Override
+    public List<PatientCardDTO> getListPatients() {
 
+        User user = getCurrentUser();
+
+        Doctor doctor = doctorRepository
+                .findByUserId(user.getId())
+                .orElseThrow(() ->
+                        new RuntimeException("Doctor not found")
+                );
+System.out.println(" doctor "+doctor.getName());
+
+        // ======================================================
+        // ACTIVE APPOINTMENTS
+        // ======================================================
+
+        List<Appointment> appointments =
+                appointmentRepository.findTodayActiveAppointments(
+                        doctor.getId()
+                );
+
+        // ======================================================
+        // ✅ CURRENT CONSULTATION EXISTS
+        // ======================================================
+
+        if (!appointments.isEmpty()) {
+
+            return appointments.stream()
+                    .map(a -> {
+
+                        PatientCardDTO dto =
+                                mapAppointmentToCard(a);
+
+                        dto.setActiveAppointment(true);
+
+                        return dto;
+
+                    })
+                    .toList();
+        }
+
+        // ======================================================
+        // ❌ NO ACTIVE CONSULTATION
+        // ======================================================
+
+        PatientCardDTO dto = new PatientCardDTO();
+
+        dto.setActiveAppointment(false);
+
+        Optional<Appointment> nextAppointment =
+                appointmentRepository.findNextAppointment(
+                        doctor.getId(),
+                        LocalDateTime.now()
+                );
+
+        nextAppointment.ifPresent(a ->
+                dto.setNextAppointmentTime(
+                        a.getStartTime()
+                )
+        );
+
+        return List.of(dto);
+    }
+
+
+    private PatientCardDTO mapAppointmentToCard(Appointment appointment) {
+
+        PatientCardDTO dto = new PatientCardDTO();
+
+        Patient patient = appointment.getPatient();
+
+        if (patient != null) {
+
+            dto.setPatientId(patient.getId());
+            dto.setFull_name_patient(patient.getFullName());
+        }
+
+        dto.setAppointmentId(appointment.getId());
+
+        dto.setAppointmentDate(
+                appointment.getAppointmentDate()
+        );
+
+        if (appointment.getDoctor() != null) {
+
+            dto.setDoctorName(
+                    appointment.getDoctor().getName()
+            );
+        }
+
+        return dto;
+    }
 
 }

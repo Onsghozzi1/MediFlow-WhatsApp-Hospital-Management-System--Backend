@@ -52,6 +52,7 @@ public class AuthConfig {
                                 "/api/v1/auth/**",
                                 "/api/v1/business/**",
                                 "/api/v1/Patient/**",
+                                "/api/v1/consultation/**",
                                 "/api/v1/Appointment/**",
                                 "/api/v1/project/**",
                                 "/api/v1/follow_up/**",

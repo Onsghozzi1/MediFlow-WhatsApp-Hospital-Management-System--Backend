@@ -4,6 +4,7 @@ import com.example.MediFlow.Dtos.ApiResponse;
 import com.example.MediFlow.Dtos.ApoimentsDtos.*;
 import com.example.MediFlow.Dtos.Patients.PatientDTO;
 import com.example.MediFlow.Dtos.Patients.Patient_AppointmentDto;
+import com.example.MediFlow.Dtos.WhatsAppMessageDto;
 import com.example.MediFlow.Dtos.user_dto.AdminFilter;
 import com.example.MediFlow.Dtos.user_dto.AdminResponseDto;
 import com.example.MediFlow.entity.Appointment;
@@ -11,6 +12,7 @@ import com.example.MediFlow.entity.Patient;
 import com.example.MediFlow.repository.AppointmentRepository;
 import com.example.MediFlow.repository.PatientRepository;
 import com.example.MediFlow.services.IAppointmentService;
+import com.example.MediFlow.services.impl.WhatsAppService;
 import com.example.MediFlow.utility.AppConstants;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
@@ -39,6 +41,9 @@ public class AppoimentController {
     private IAppointmentService iAppointmentService ;
     @Autowired
     private AppointmentRepository patientRepository;
+
+    @Autowired
+    private WhatsAppService whatsAppService;
     @PostMapping("/add-appointment")
     public ResponseEntity<ApiResponse> create(@Valid @RequestBody AppoimentsDto appointment) {
 
@@ -91,19 +96,21 @@ public class AppoimentController {
         return iAppointmentService.getAllAppointmentsPatient();
     }
 
-    @GetMapping("/send")
+    @PostMapping("/send")
+    public ResponseEntity<?> send(
+            @RequestBody WhatsAppMessageDto dto
+    ) {
 
-    public ResponseEntity<String> sendSMS() {
+        System.out.println("dtoooo "+dto);
+        String response =
+                whatsAppService.sendMessage(
+                        dto.getPhone(),
+                        dto.getMessage()
+                );
 
-        Twilio.init(System.getenv("TWILIO_ACCOUNT_SID"),
-                System.getenv("TWILIO_AUTH_TOKEN"));
-
-        Message.creator(new PhoneNumber("21629883670"),
-                new PhoneNumber("<FROM number - ie your Twilio number"),
-                "Hello from Twilio 📞").create();
-
-        return new ResponseEntity<String>("Message sent successfully", HttpStatus.OK);
+        return ResponseEntity.ok(response);
     }
+
 
 //    public Map<String, String> sendWhatsApp(@RequestParam Long patientId) {
 //
@@ -127,21 +134,6 @@ public class AppoimentController {
     // CREATE APPOINTMENT
     // =========================
 
-    @PostMapping("/create_appoint")
-    public Appointment create(
-            @RequestParam Long doctorId,
-            @RequestParam String patientName,
-            @RequestParam String date,
-            @RequestParam String time
-    ) {
-
-        return iAppointmentService.createAppointment2(
-                doctorId,
-                patientName,
-                LocalDate.parse(date),
-                LocalTime.parse(time)
-        );
-    }
 
     // =========================
     // AVAILABLE SLOTS
