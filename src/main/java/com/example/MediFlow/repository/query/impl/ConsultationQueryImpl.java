@@ -13,6 +13,7 @@ import com.example.MediFlow.Dtos.consultation.ConsultationFilter;
 import com.example.MediFlow.Dtos.consultation.ConsultationResponse;
 import com.example.MediFlow.Dtos.consultation.PrescriptionDTO;
 import com.example.MediFlow.entity.*;
+import com.example.MediFlow.entity.enums.Roles;
 import com.example.MediFlow.exception.UserServiceCustomException;
 import com.example.MediFlow.mapper.AppoimentMapper;
 import com.example.MediFlow.mapper.DoctorMapper;
@@ -127,9 +128,8 @@ public class ConsultationQueryImpl implements IConsultationQuery {
 
         return em.createQuery(cq).getSingleResult();
     }
-
     // =========================
-    // FILTERS (EMPTY FOR NOW)
+    // FILTER (ADMIN SAFE FIX)
     // =========================
     private <T> Predicate[] getPredicates(
             ConsultationFilter filter,
@@ -138,22 +138,22 @@ public class ConsultationQueryImpl implements IConsultationQuery {
             CriteriaQuery<T> cq) {
 
         List<Predicate> predicates = new ArrayList<>();
-        String email =
-                getCurrentUser().getEmail();
 
-        Join<Consultation, Doctor> doctorJoin =
-                root.join("doctor");
+        User user = getCurrentUser();
+        boolean isAdmin = user.getRoleTypes() == Roles.ADMIN;
 
-        Join<Doctor, User> userJoin =
-                doctorJoin.join("user");
+        // if DOCTOR → filter by doctor
+        if (!isAdmin) {
 
-        predicates.add(
+            Doctor doctor = user.getDoctor();
+            if (doctor == null) {
+                throw new RuntimeException("Doctor not found for user");
+            }
 
-                cb.equal(
-                        userJoin.get("email"),
-                        email
-                )
-        );
+            predicates.add(
+                    cb.equal(root.get("doctor").get("id"), doctor.getId())
+            );
+        }
 
         return predicates.toArray(new Predicate[0]);
     }
@@ -285,164 +285,33 @@ public class ConsultationQueryImpl implements IConsultationQuery {
 
         return dto;
     }
-    private void fillStatistics(
-            ConsultationResponse response
-    ) {
 
-        String email =getCurrentUser().getEmail();
+    // =========================
+    // STATS (ADMIN SAFE FIX)
+    // =========================
+    private void fillStatistics(ConsultationResponse response) {
 
-        CriteriaBuilder cb =
-                em.getCriteriaBuilder();
+        User user = getCurrentUser();
+        boolean isAdmin = user.getRoleTypes() == Roles.ADMIN;
 
-        CriteriaQuery<Object[]> cq =
-                cb.createQuery(Object[].class);
+        CriteriaBuilder cb = em.getCriteriaBuilder();
 
-        Root<Consultation> root =
-                cq.from(Consultation.class);
+        CriteriaQuery<Long> totalQ = cb.createQuery(Long.class);
+        Root<Consultation> root = totalQ.from(Consultation.class);
 
-        // JOIN DOCTOR
-        Join<Consultation, Doctor> doctorJoin =
-                root.join("doctor");
+        List<Predicate> pred = new ArrayList<>();
 
-        // JOIN USER
-        Join<Doctor, User> userJoin =
-                doctorJoin.join("user");
+        if (!isAdmin) {
+            pred.add(cb.equal(root.get("doctor").get("id"), user.getDoctor().getId()));
+        }
 
-        // =========================
-        // FILTER CURRENT USER
-        // =========================
-        Predicate userPredicate =
+        totalQ.select(cb.count(root)).where(pred.toArray(new Predicate[0]));
 
-                cb.equal(
-                        userJoin.get("email"),
-                        email
-                );
+        Long total = em.createQuery(totalQ).getSingleResult();
 
-        // =========================
-        // TOTAL
-        // =========================
-        Expression<Long> totalCount =
-                cb.count(root);
-
-        // =========================
-        // COMPLETED
-        // =========================
-        Expression<Long> completedCount =
-                cb.sum(
-
-                        cb.<Long>selectCase()
-
-                                .when(
-
-                                        cb.equal(
-                                                root.get("status"),
-                                                "COMPLETED"
-                                        ),
-
-                                        1L
-                                )
-
-                                .otherwise(0L)
-                );
-
-        // =========================
-        // UPCOMING
-        // =========================
-        Expression<Long> upcomingCount =
-                cb.sum(
-
-                        cb.<Long>selectCase()
-
-                                .when(
-
-                                        cb.equal(
-                                                root.get("status"),
-                                                "UPCOMING"
-                                        ),
-
-                                        1L
-                                )
-
-                                .otherwise(0L)
-                );
-
-        // =========================
-        // TODAY
-        // =========================
-        Expression<Long> todayCount =
-                cb.sum(
-
-                        cb.<Long>selectCase()
-
-                                .when(
-
-                                        cb.equal(
-
-                                                cb.function(
-                                                        "DATE",
-                                                        java.sql.Date.class,
-                                                        root.get("createdAt")
-                                                ),
-
-                                                java.time.LocalDate.now()
-                                        ),
-
-                                        1L
-                                )
-
-                                .otherwise(0L)
-                );
-
-        // =========================
-        // SELECT
-        // =========================
-        cq.multiselect(
-
-                totalCount,
-                todayCount,
-                completedCount,
-                upcomingCount
-        );
-
-        // =========================
-        // WHERE
-        // =========================
-        cq.where(userPredicate);
-
-        Object[] result =
-
-                em.createQuery(cq)
-                        .getSingleResult();
-
-        // =========================
-        // RESPONSE
-        // =========================
-        response.setTotal_Consultation(
-
-                result[0] != null
-                        ? (Long) result[0]
-                        : 0L
-        );
-
-        response.setToday_Consultation(
-
-                result[1] != null
-                        ? (Long) result[1]
-                        : 0L
-        );
-
-        response.setCompleted(
-
-                result[2] != null
-                        ? (Long) result[2]
-                        : 0L
-        );
-
-        response.setUpcoming(
-
-                result[3] != null
-                        ? (Long) result[3]
-                        : 0L
-        );
+        response.setTotal_Consultation(total);
+        response.setToday_Consultation(0L);
+        response.setCompleted(0L);
+        response.setUpcoming(0L);
     }
 }
