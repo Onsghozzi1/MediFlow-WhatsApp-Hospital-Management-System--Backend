@@ -142,4 +142,11 @@ LIMIT 1
             Long doctorId,
             LocalDateTime now
     );
+    @Query("""
+    SELECT DISTINCT a
+    FROM Appointment a
+    WHERE a.doctor.id = :doctorId
+    AND a.is_delete = false
+""")
+    List<Appointment> findPatientsByDoctorId(Long doctorId);
 }

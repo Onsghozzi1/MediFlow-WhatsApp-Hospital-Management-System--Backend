@@ -151,8 +151,10 @@ User user =getCurrentUser();
 
     @Override
     public List_attributs_patients etListPatients() {
+        User user = getCurrentUser();
 
-        List<Patient> patients = patientRepository.findAll();
+
+        List<Patient> patients = patientRepository.findByDoctorIdAndIsDeleteFalse(user.getDoctor().getId());
 
         List_attributs_patients dto = new List_attributs_patients();
 

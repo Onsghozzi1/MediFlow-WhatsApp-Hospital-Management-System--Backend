@@ -130,7 +130,13 @@ public class AppointmentServiceImpl implements IAppointmentService {
     }
     @Override
     public List<AllPatients> getAllAppointmentsPatient() {
-        List<Appointment> appointments = appointmentRepository.findAll();
+        User user = getCurrentUser();
+
+        List<Appointment> appointments =
+                appointmentRepository.findPatientsByDoctorId(
+                        user.getDoctor().getId()
+                );
+
 
         return appointments.stream()
                 .map(app -> AllPatients.builder()
