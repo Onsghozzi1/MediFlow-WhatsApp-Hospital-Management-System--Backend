@@ -120,15 +120,29 @@ public class AppointmentServiceImpl implements IAppointmentService {
     public List<Appointment_calendar> getAllAppointments() {
 
         User user = getCurrentUser();
-        Doctor doctor = doctorRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new DoctorException("Doctor not found"));
-        List<Appointment> appointments =
-                appointmentRepository.findByDoctorId(doctor.getId());
+        boolean isAdmin = user.getRoleTypes() == Roles.ADMIN;
+
+        List<Appointment> appointments;
+
+        if (isAdmin) {
+
+            // ADMIN → ALL APPOINTMENTS
+            appointments = appointmentRepository.findAll();
+
+        } else {
+
+            // DOCTOR → ONLY HIS APPOINTMENTS
+            Doctor doctor = doctorRepository.findByUserId(user.getId())
+                    .orElseThrow(() -> new DoctorException("Doctor not found"));
+
+            appointments = appointmentRepository.findByDoctorId(doctor.getId());
+        }
 
         return appointments.stream()
                 .map(this::mapToCalendar)
                 .toList();
     }
+
     @Override
     public List<AllPatients> getAllAppointmentsPatient() {
 
