@@ -19,7 +19,7 @@ import java.util.List;
 public class ConsultationDTO {
 
     public Long id;
-    public PatientDTO patient;
+    public Patient_consultation_Dtos patient;
     public DoctorDtos_consultation doctor;
     public Appoi_dto appointment;
     public ConsultationStatus status;

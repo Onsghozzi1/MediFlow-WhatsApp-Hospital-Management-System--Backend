@@ -50,4 +50,5 @@ public class PatientDTO {
     private Boolean is_delete;
     private Boolean patient_activated;
 
+
 }

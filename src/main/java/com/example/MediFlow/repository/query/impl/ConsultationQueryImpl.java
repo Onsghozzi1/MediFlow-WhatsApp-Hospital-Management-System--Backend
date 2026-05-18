@@ -8,10 +8,7 @@ import com.example.MediFlow.Dtos.Patients.PatientDTO;
 import com.example.MediFlow.Dtos.Patients.PatientFilter;
 import com.example.MediFlow.Dtos.Patients.PatientResponseDto;
 import com.example.MediFlow.Dtos.Patients.Patient_AppointmentDto;
-import com.example.MediFlow.Dtos.consultation.ConsultationDTO;
-import com.example.MediFlow.Dtos.consultation.ConsultationFilter;
-import com.example.MediFlow.Dtos.consultation.ConsultationResponse;
-import com.example.MediFlow.Dtos.consultation.PrescriptionDTO;
+import com.example.MediFlow.Dtos.consultation.*;
 import com.example.MediFlow.entity.*;
 import com.example.MediFlow.entity.enums.Roles;
 import com.example.MediFlow.exception.UserServiceCustomException;
@@ -154,7 +151,9 @@ public class ConsultationQueryImpl implements IConsultationQuery {
                     cb.equal(root.get("doctor").get("id"), doctor.getId())
             );
         }
-
+        if (filter.getId() != null && filter.getId().longValue() > 0) {
+            predicates.add(cb.equal(root.get("id"), filter.getId()));
+        }
         return predicates.toArray(new Predicate[0]);
     }
 
@@ -257,17 +256,20 @@ public class ConsultationQueryImpl implements IConsultationQuery {
     // =========================
     // PATIENT MAPPER
     // =========================
-    private PatientDTO ConvertPatient(Patient patient) {
+    private Patient_consultation_Dtos ConvertPatient(Patient patient) {
 
         if (patient == null) {
             return null;
         }
 
-        PatientDTO dto = new PatientDTO();
-        dto.setId(patient.getId());
+        Patient_consultation_Dtos dto = new Patient_consultation_Dtos();
         dto.setFullName(patient.getFullName());
         dto.setWhatsappNumber(patient.getWhatsappNumber());
-
+        dto.setMedical_Record_ID(patient.getMedical_Record_ID());
+        dto.setGender(patient.getGender());
+        dto.setPhone(patient.getPhone());
+        dto.setBirthDate(patient.getBirthDate());
+        dto.setAddress(patient.getAddress());
         return dto;
     }
 
